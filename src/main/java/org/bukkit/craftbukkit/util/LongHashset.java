@@ -1,301 +1,149 @@
-/*
-  Based on CompactHashSet Copyright 2011 Ontopia Project
-
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-*/
-
 package org.bukkit.craftbukkit.util;
 
-import java.util.Iterator;
-import java.util.ConcurrentModificationException;
-import java.util.NoSuchElementException;
+import static org.bukkit.craftbukkit.util.Java15Compat.Arrays_copyOf;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
-public class LongHashSet {
-    private final static int INITIAL_SIZE = 3;
-    private final static double LOAD_FACTOR = 0.75;
-
-    private final static long FREE = 0;
-    private final static long REMOVED = Long.MIN_VALUE;
-
-    private int freeEntries;
-    private int elements;
-    private long[] values;
-    private int modCount;
-
-    public LongHashSet() {
-        this(INITIAL_SIZE);
-    }
-
-    public LongHashSet(int size) {
-        values = new long[(size==0 ? 1 : size)];
-        elements = 0;
-        freeEntries = values.length;
-        modCount = 0;
-    }
-
-    public Iterator iterator() {
-        return new Itr();
-    }
-
-    public int size() {
-        return elements;
-    }
+public class LongHashset extends LongHash {
+    long[][][] values = new long[256][][];
+    int count = 0;
+    ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
+    ReadLock rl = rwl.readLock();
+    WriteLock wl = rwl.writeLock();
 
     public boolean isEmpty() {
-        return elements == 0;
-    }
-
-    public boolean contains(int msw, int lsw) {
-        return contains(LongHash.toLong(msw, lsw));
-    }
-
-    public boolean contains(long value) {
-        int hash = hash(value);
-        int index = (hash & 0x7FFFFFFF) % values.length;
-        int offset = 1;
-
-        // search for the object (continue while !null and !this object)
-        while(values[index] != FREE && !(hash(values[index]) == hash && values[index] == value)) {
-            index = ((index + offset) & 0x7FFFFFFF) % values.length;
-            offset = offset * 2 + 1;
-
-            if (offset == -1) {
-                offset = 2;
-            }
+        rl.lock();
+        try {
+            return this.count == 0;
+        } finally {
+            rl.unlock();
         }
-
-        return values[index] != FREE;
     }
 
-    public boolean add(int msw, int lsw) {
-        return add(LongHash.toLong(msw, lsw));
+    public void add(int msw, int lsw) {
+        add(toLong(msw, lsw));
     }
 
-    public boolean add(long value) {
-        int hash = hash(value);
-        int index = (hash & 0x7FFFFFFF) % values.length;
-        int offset = 1;
-        int deletedix = -1;
+    public void add(long key) {
+        wl.lock();
+        try {
+            int mainIdx = (int) (key & 255);
+            long outer[][] = this.values[mainIdx];
+            if (outer == null) this.values[mainIdx] = outer = new long[256][];
 
-        // search for the object (continue while !null and !this object)
-        while(values[index] != FREE && !(hash(values[index]) == hash && values[index] == value)) {
-            // if there's a deleted object here we can put this object here,
-            // provided it's not in here somewhere else already
-            if (values[index] == REMOVED) {
-                deletedix = index;
-            }
+            int outerIdx = (int) ((key >> 32) & 255);
+            long inner[] = outer[outerIdx];
 
-            index = ((index + offset) & 0x7FFFFFFF) % values.length;
-            offset = offset * 2 + 1;
-
-            if (offset == -1) {
-                offset = 2;
-            }
-        }
-
-        if (values[index] == FREE) {
-            if (deletedix != -1) { // reusing a deleted cell
-                index = deletedix;
+            if (inner == null) {
+                synchronized (this) {
+                    outer[outerIdx] = inner = new long[1];
+                    inner[0] = key;
+                    this.count++;
+                }
             } else {
-                freeEntries--;
+                int i;
+                for (i = 0; i < inner.length; i++) {
+                    if (inner[i] == key) {
+                        return;
+                    }
+                }
+                inner = Arrays_copyOf(inner, i + 1);
+                outer[outerIdx] = inner;
+                inner[i] = key;
+                this.count++;
             }
+        } finally {
+            wl.unlock();
+        }
+    }
 
-            modCount++;
-            elements++;
-            values[index] = value;
+    public boolean containsKey(long key) {
+        rl.lock();
+        try {
+            long[][] outer = this.values[(int) (key & 255)];
+            if (outer == null) return false;
 
-            if (1 - (freeEntries / (double) values.length) > LOAD_FACTOR) {
-                rehash();
+            long[] inner = outer[(int) ((key >> 32) & 255)];
+            if (inner == null) return false;
+
+            for (long entry: inner) {
+                if (entry == key) return true;
             }
-
-            return true;
-        } else {
             return false;
+        } finally {
+            rl.unlock();
         }
     }
 
-    public void remove(int msw, int lsw) {
-        remove(LongHash.toLong(msw, lsw));
-    }
+    public void remove(long key) {
+        wl.lock();
+        try {
+            long[][] outer = this.values[(int) (key & 255)];
+            if (outer == null) return;
 
-    public boolean remove(long value) {
-        int hash = hash(value);
-        int index = (hash & 0x7FFFFFFF) % values.length;
-        int offset = 1;
+            long[] inner = outer[(int) ((key >> 32) & 255)];
+            if (inner == null) return;
 
-        // search for the object (continue while !null and !this object)
-        while(values[index] != FREE && !(hash(values[index]) == hash && values[index] == value)) {
-            index = ((index + offset) & 0x7FFFFFFF) % values.length;
-            offset = offset * 2 + 1;
+            int max = inner.length - 1;
+            for (int i = 0; i <= max; i++) {
+                if (inner[i] == key) {
+                    this.count--;
+                    if (i != max) {
+                        inner[i] = inner[max];
+                    }
 
-            if (offset == -1) {
-                offset = 2;
+                    outer[(int) ((key >> 32) & 255)] = (max == 0 ? null : Arrays_copyOf(inner, max));
+                    return;
+                }
             }
+        } finally {
+            wl.unlock();
         }
-
-        if (values[index] != FREE) {
-            values[index] = REMOVED;
-            modCount++;
-            elements--;
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    public void clear() {
-        elements = 0;
-        for (int ix = 0; ix < values.length; ix++) {
-            values[ix] = FREE;
-        }
-
-        freeEntries = values.length;
-        modCount++;
-    }
-
-    public long[] toArray() {
-        long[] result = new long[elements];
-        long[] values = Java15Compat.Arrays_copyOf(this.values, this.values.length);
-        int pos = 0;
-
-        for (long value : values) {
-            if (value != FREE && value != REMOVED) {
-                result[pos++] = value;
-            }
-        }
-
-        return result;
     }
 
     public long popFirst() {
-        for (long value : values) {
-            if (value != FREE && value != REMOVED) {
-                remove(value);
-                return value;
-            }
-        }
+        wl.lock();
+        try {
+            for (long[][] outer: this.values) {
+                if (outer == null) continue;
 
+                for (int i = 0; i < outer.length; i++) {
+                    long[] inner = outer[i];
+                    if (inner == null || inner.length == 0) continue;
+
+                    this.count--;
+                    long ret = inner[inner.length - 1];
+                    outer[i] = Arrays_copyOf(inner, inner.length - 1);
+
+                    return ret;
+                }
+            }
+        } finally {
+            wl.unlock();
+        }
         return 0;
     }
 
-    public long[] popAll() {
-        long[] ret = toArray();
-        clear();
-        return ret;
-    }
+    public long[] keys() {
+        int index = 0;
+        rl.lock();
+        try {
+            long[] ret = new long[this.count];
+            for (long[][] outer: this.values) {
+                if (outer == null) continue;
 
-    // This method copied from Murmur3, written by Austin Appleby released under Public Domain
-    private int hash(long value) {
-        value ^= value >>> 33;
-        value *= 0xff51afd7ed558ccdL;
-        value ^= value >>> 33;
-        value *= 0xc4ceb9fe1a85ec53L;
-        value ^= value >>> 33;
-        return (int) value;
-    }
+                for (long[] inner: outer) {
+                    if (inner == null) continue;
 
-    private void rehash() {
-        int gargagecells = values.length - (elements + freeEntries);
-        if (gargagecells / (double) values.length > 0.05) {
-            rehash(values.length);
-        } else {
-            rehash(values.length * 2 + 1);
-        }
-    }
-
-    private void rehash(int newCapacity) {
-        long[] newValues = new long[newCapacity];
-
-        for (long value : values) {
-            if (value == FREE || value == REMOVED) {
-                continue;
-            }
-
-            int hash = hash(value);
-            int index = (hash & 0x7FFFFFFF) % newCapacity;
-            int offset = 1;
-
-            // search for the object
-            while (newValues[index] != FREE) {
-                index = ((index + offset) & 0x7FFFFFFF) % newCapacity;
-                offset = offset * 2 + 1;
-
-                if (offset == -1) {
-                    offset = 2;
+                    for (long entry: inner) {
+                        ret[index++] = entry;
+                    }
                 }
             }
-
-            newValues[index] = value;
-        }
-
-        values = newValues;
-        freeEntries = values.length - elements;
-    }
-
-    private class Itr implements Iterator {
-        private int index;
-        private int lastReturned = -1;
-        private int expectedModCount;
-
-        public Itr() {
-            for (index = 0; index < values.length && (values[index] == FREE || values[index] == REMOVED); index++) {
-                // This is just to drive the index forward to the first valid entry
-            }
-            expectedModCount = modCount;
-        }
-
-        public boolean hasNext() {
-            return index != values.length;
-        }
-
-        public Long next() {
-            if (modCount != expectedModCount) {
-                throw new ConcurrentModificationException();
-            }
-
-            int length = values.length;
-            if (index >= length) {
-                lastReturned = -2;
-                throw new NoSuchElementException();
-            }
-
-            lastReturned = index;
-            for (index += 1; index < length && (values[index] == FREE || values[index] == REMOVED); index++) {
-                // This is just to drive the index forward to the next valid entry
-            }
-
-            if (values[lastReturned] == FREE) {
-                return FREE;
-            } else {
-                return values[lastReturned];
-            }
-        }
-
-        public void remove() {
-            if (modCount != expectedModCount) {
-                throw new ConcurrentModificationException();
-            }
-
-            if (lastReturned == -1 || lastReturned == -2) {
-                throw new IllegalStateException();
-            }
-
-            if (values[lastReturned] != FREE && values[lastReturned] != REMOVED) {
-                values[lastReturned] = REMOVED;
-                elements--;
-                modCount++;
-                expectedModCount = modCount;
-            }
+            return ret;
+        } finally {
+            rl.unlock();
         }
     }
 }

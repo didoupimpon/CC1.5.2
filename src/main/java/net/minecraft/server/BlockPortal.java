@@ -2,42 +2,17 @@ package net.minecraft.server;
 
 import java.util.Random;
 
-// CraftBukkit start
-import org.bukkit.event.entity.EntityPortalEnterEvent;
-import org.bukkit.event.world.PortalCreateEvent;
-// CraftBukkit end
+public class BlockPortal extends BlockBreakable {
 
-public class BlockPortal extends BlockHalfTransparant {
-
-    public BlockPortal(int i) {
-        super(i, "portal", Material.PORTAL, false);
-        this.b(true);
+    public BlockPortal(int i, int j) {
+        super(i, j, Material.PORTAL, false);
     }
 
-    public void a(World world, int i, int j, int k, Random random) {
-        super.a(world, i, j, k, random);
-        if (world.worldProvider.d() && random.nextInt(2000) < world.difficulty) {
-            int l;
-
-            for (l = j; !world.w(i, l, k) && l > 0; --l) {
-                ;
-            }
-
-            if (l > 0 && !world.u(i, l + 1, k)) {
-                Entity entity = ItemMonsterEgg.a(world, 57, (double) i + 0.5D, (double) l + 1.1D, (double) k + 0.5D);
-
-                if (entity != null) {
-                    entity.portalCooldown = entity.aa();
-                }
-            }
-        }
-    }
-
-    public AxisAlignedBB b(World world, int i, int j, int k) {
+    public AxisAlignedBB d(World world, int i, int j, int k) {
         return null;
     }
 
-    public void updateShape(IBlockAccess iblockaccess, int i, int j, int k) {
+    public void a(IBlockAccess iblockaccess, int i, int j, int k) {
         float f;
         float f1;
 
@@ -52,15 +27,11 @@ public class BlockPortal extends BlockHalfTransparant {
         }
     }
 
-    public boolean c() {
+    public boolean a() {
         return false;
     }
 
-    public boolean b() {
-        return false;
-    }
-
-    public boolean n_(World world, int i, int j, int k) {
+    public boolean a_(World world, int i, int j, int k) {
         byte b0 = 0;
         byte b1 = 0;
 
@@ -72,14 +43,10 @@ public class BlockPortal extends BlockHalfTransparant {
             b1 = 1;
         }
 
+        //System.out.println(b0 + ", " + b1); // CraftBukkit
         if (b0 == b1) {
             return false;
         } else {
-            // CraftBukkit start
-            java.util.Collection<org.bukkit.block.Block> blocks = new java.util.HashSet<org.bukkit.block.Block>();
-            org.bukkit.World bworld = world.getWorld();
-            // CraftBukkit end
-
             if (world.getTypeId(i - b0, j, k - b1) == 0) {
                 i -= b0;
                 k -= b1;
@@ -98,8 +65,6 @@ public class BlockPortal extends BlockHalfTransparant {
                         if (flag) {
                             if (j1 != Block.OBSIDIAN.id) {
                                 return false;
-                            } else { // CraftBukkit
-                                blocks.add(bworld.getBlockAt(i + b0 * l, j + i1, k + b1 * l)); // CraftBukkit
                             }
                         } else if (j1 != 0 && j1 != Block.FIRE.id) {
                             return false;
@@ -108,27 +73,15 @@ public class BlockPortal extends BlockHalfTransparant {
                 }
             }
 
-            // CraftBukkit start
-            for (l = 0; l < 2; ++l) {
-                for (i1 = 0; i1 < 3; ++i1) {
-                    blocks.add(bworld.getBlockAt(i + b0 * l, j + i1, k + b1 * l));
-                }
-            }
-
-            PortalCreateEvent event = new PortalCreateEvent(blocks, bworld, PortalCreateEvent.CreateReason.FIRE);
-            world.getServer().getPluginManager().callEvent(event);
-
-            if (event.isCancelled()) {
-                return false;
-            }
-            // CraftBukkit end
+            world.j = true;
 
             for (l = 0; l < 2; ++l) {
                 for (i1 = 0; i1 < 3; ++i1) {
-                    world.setTypeIdAndData(i + b0 * l, j + i1, k + b1 * l, Block.PORTAL.id, 0, 2);
+                    world.setTypeId(i + b0 * l, j + i1, k + b1 * l, Block.PORTAL.id);
                 }
             }
 
+            world.j = false;
             return true;
         }
     }
@@ -149,7 +102,7 @@ public class BlockPortal extends BlockHalfTransparant {
         }
 
         if (world.getTypeId(i, i1 - 1, k) != Block.OBSIDIAN.id) {
-            world.setAir(i, j, k);
+            world.setTypeId(i, j, k, 0);
         } else {
             int j1;
 
@@ -162,16 +115,18 @@ public class BlockPortal extends BlockHalfTransparant {
                 boolean flag1 = world.getTypeId(i, j, k - 1) == this.id || world.getTypeId(i, j, k + 1) == this.id;
 
                 if (flag && flag1) {
-                    world.setAir(i, j, k);
-                } else {
-                    if ((world.getTypeId(i + b0, j, k + b1) != Block.OBSIDIAN.id || world.getTypeId(i - b0, j, k - b1) != this.id) && (world.getTypeId(i - b0, j, k - b1) != Block.OBSIDIAN.id || world.getTypeId(i + b0, j, k + b1) != this.id)) {
-                        world.setAir(i, j, k);
-                    }
+                    world.setTypeId(i, j, k, 0);
+                } else if ((world.getTypeId(i + b0, j, k + b1) != Block.OBSIDIAN.id || world.getTypeId(i - b0, j, k - b1) != this.id) && (world.getTypeId(i - b0, j, k - b1) != Block.OBSIDIAN.id || world.getTypeId(i + b0, j, k + b1) != this.id)) {
+                    world.setTypeId(i, j, k, 0);
                 }
             } else {
-                world.setAir(i, j, k);
+                world.setTypeId(i, j, k, 0);
             }
         }
+    }
+
+    public boolean a(IBlockAccess iblockaccess, int i, int j, int k, int l) {
+        return true;
     }
 
     public int a(Random random) {
@@ -179,13 +134,8 @@ public class BlockPortal extends BlockHalfTransparant {
     }
 
     public void a(World world, int i, int j, int k, Entity entity) {
-        if (entity.vehicle == null && entity.passenger == null) {
-            // CraftBukkit start - Entity in portal
-            EntityPortalEnterEvent event = new EntityPortalEnterEvent(entity.getBukkitEntity(), new org.bukkit.Location(world.getWorld(), i, j, k));
-            world.getServer().getPluginManager().callEvent(event);
-            // CraftBukkit end
-
-            entity.Z();
+        if (!world.isStatic) {
+            entity.ad();
         }
     }
 }

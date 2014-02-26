@@ -1,5 +1,12 @@
 package net.minecraft.server;
 
+// CraftBukkit start
+import org.bukkit.block.BlockState;
+import org.bukkit.craftbukkit.block.CraftBlockState;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.event.block.BlockPlaceEvent;
+// CraftBukkit end
+
 public class ItemDoor extends Item {
 
     private Material a;
@@ -8,14 +15,14 @@ public class ItemDoor extends Item {
         super(i);
         this.a = material;
         this.maxStackSize = 1;
-        this.a(CreativeModeTab.d);
     }
 
-    public boolean interactWith(ItemStack itemstack, EntityHuman entityhuman, World world, int i, int j, int k, int l, float f, float f1, float f2) {
-        final int clickedX = i, clickedY = j, clickedZ = k; // CraftBukkit
+    public boolean a(ItemStack itemstack, EntityHuman entityhuman, World world, int i, int j, int k, int l) {
         if (l != 1) {
             return false;
         } else {
+            int clickedX = i, clickedY = j, clickedZ = k; // CraftBukkit
+
             ++j;
             Block block;
 
@@ -25,83 +32,65 @@ public class ItemDoor extends Item {
                 block = Block.IRON_DOOR_BLOCK;
             }
 
-            if (entityhuman.a(i, j, k, l, itemstack) && entityhuman.a(i, j + 1, k, l, itemstack)) {
-                if (!block.canPlace(world, i, j, k)) {
-                    return false;
-                } else {
-                    int i1 = MathHelper.floor((double) ((entityhuman.yaw + 180.0F) * 4.0F / 360.0F) - 0.5D) & 3;
-
-                    // CraftBukkit start
-                    if (!place(world, i, j, k, i1, block, entityhuman, clickedX, clickedY, clickedZ)) {
-                        return false;
-                    }
-                    // CraftBukkit end
-
-                    --itemstack.count;
-                    return true;
-                }
+            if (!block.canPlace(world, i, j, k)) {
+                return false;
             } else {
-                return false;
-            }
-        }
-    }
+                int i1 = MathHelper.floor((double) ((entityhuman.yaw + 180.0F) * 4.0F / 360.0F) - 0.5D) & 3;
+                byte b0 = 0;
+                byte b1 = 0;
 
-    public static void place(World world, int i, int j, int k, int l, Block block) {
-        // CraftBukkit start
-        place(world, i, j, k, l, block, null, i, j, k);
-    }
+                if (i1 == 0) {
+                    b1 = 1;
+                }
 
-    public static boolean place(World world, int i, int j, int k, int l, Block block, EntityHuman entityhuman, int clickedX, int clickedY, int clickedZ) {
-        // CraftBukkit end
-        byte b0 = 0;
-        byte b1 = 0;
+                if (i1 == 1) {
+                    b0 = -1;
+                }
 
-        if (l == 0) {
-            b1 = 1;
-        }
+                if (i1 == 2) {
+                    b1 = -1;
+                }
 
-        if (l == 1) {
-            b0 = -1;
-        }
+                if (i1 == 3) {
+                    b0 = 1;
+                }
 
-        if (l == 2) {
-            b1 = -1;
-        }
+                int j1 = (world.d(i - b0, j, k - b1) ? 1 : 0) + (world.d(i - b0, j + 1, k - b1) ? 1 : 0);
+                int k1 = (world.d(i + b0, j, k + b1) ? 1 : 0) + (world.d(i + b0, j + 1, k + b1) ? 1 : 0);
+                boolean flag = world.getTypeId(i - b0, j, k - b1) == block.id || world.getTypeId(i - b0, j + 1, k - b1) == block.id;
+                boolean flag1 = world.getTypeId(i + b0, j, k + b1) == block.id || world.getTypeId(i + b0, j + 1, k + b1) == block.id;
+                boolean flag2 = false;
 
-        if (l == 3) {
-            b0 = 1;
-        }
+                if (flag && !flag1) {
+                    flag2 = true;
+                } else if (k1 > j1) {
+                    flag2 = true;
+                }
 
-        int i1 = (world.u(i - b0, j, k - b1) ? 1 : 0) + (world.u(i - b0, j + 1, k - b1) ? 1 : 0);
-        int j1 = (world.u(i + b0, j, k + b1) ? 1 : 0) + (world.u(i + b0, j + 1, k + b1) ? 1 : 0);
-        boolean flag = world.getTypeId(i - b0, j, k - b1) == block.id || world.getTypeId(i - b0, j + 1, k - b1) == block.id;
-        boolean flag1 = world.getTypeId(i + b0, j, k + b1) == block.id || world.getTypeId(i + b0, j + 1, k + b1) == block.id;
-        boolean flag2 = false;
+                if (flag2) {
+                    i1 = i1 - 1 & 3;
+                    i1 += 4;
+                }
 
-        if (flag && !flag1) {
-            flag2 = true;
-        } else if (j1 > i1) {
-            flag2 = true;
-        }
+                BlockState blockState = CraftBlockState.getBlockState(world, i, j, k); // CraftBukkit
 
-        // CraftBukkit start
-        if (entityhuman != null) {
-            if(!ItemBlock.processBlockPlace(world, entityhuman, null, i, j, k, block.id, l, clickedX, clickedY, clickedZ)) {
-                ((EntityPlayer) entityhuman).playerConnection.sendPacket(new Packet53BlockChange(i, j + 1, k, world));
-                return false;
-            }
+                world.setTypeId(i, j, k, block.id);
+                world.setData(i, j, k, i1);
 
-            if (world.getTypeId(i, j, k) != block.id) {
-                ((EntityPlayer) entityhuman).playerConnection.sendPacket(new Packet53BlockChange(i, j + 1, k, world));
+                // CraftBukkit start - bed
+                BlockPlaceEvent event = CraftEventFactory.callBlockPlaceEvent(world, entityhuman, blockState, clickedX, clickedY, clickedZ, block);
+
+                if (event.isCancelled() || !event.canBuild()) {
+                    event.getBlockPlaced().setTypeIdAndData(blockState.getTypeId(), blockState.getRawData(), false);
+                    return false;
+                }
+                // CraftBukkit end
+
+                world.setTypeId(i, j + 1, k, block.id);
+                world.setData(i, j + 1, k, i1 + 8);
+                --itemstack.count;
                 return true;
             }
-        } else {
-            world.setTypeIdAndData(i, j, k, block.id, l, 2);
         }
-        // CraftBukkit end
-        world.setTypeIdAndData(i, j + 1, k, block.id, 8 | (flag2 ? 1 : 0), 2);
-        world.applyPhysics(i, j, k, block.id);
-        world.applyPhysics(i, j + 1, k, block.id);
-        return true; // CraftBukkit
     }
 }

@@ -4,42 +4,43 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-import static org.bukkit.craftbukkit.Main.*; // CraftBukkit
+// CraftBukkit start
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import jline.ConsoleReader;
+import org.bukkit.craftbukkit.Main;
+// CraftBukkit end
 
-class ThreadCommandReader extends Thread {
+public class ThreadCommandReader extends Thread {
 
-    final DedicatedServer server;
+    final MinecraftServer server;
 
-    ThreadCommandReader(DedicatedServer dedicatedserver) {
-        this.server = dedicatedserver;
+    public ThreadCommandReader(MinecraftServer minecraftserver) {
+        this.server = minecraftserver;
     }
 
     public void run() {
         // CraftBukkit start
-        if (!useConsole) {
-            return;
-        }
+        ConsoleReader bufferedreader = this.server.reader;
+        String s = null;
         // CraftBukkit end
 
-        jline.console.ConsoleReader bufferedreader = this.server.reader; // CraftBukkit
-        String s;
-
         try {
-            // CraftBukkit start - JLine disabling compatibility
-            while (!this.server.isStopped() && this.server.isRunning()) {
-                if (useJline) {
+            while (!this.server.isStopped && MinecraftServer.isRunning(this.server)) {
+                // CraftBukkit start - JLine disabling compatibility
+                if (Main.useJline) {
                     s = bufferedreader.readLine(">", null);
                 } else {
                     s = bufferedreader.readLine();
                 }
                 if (s != null) {
+                    // CraftBukkit end
                     this.server.issueCommand(s, this.server);
                 }
-                // CraftBukkit end
             }
         } catch (IOException ioexception) {
             // CraftBukkit
-            java.util.logging.Logger.getLogger("").log(java.util.logging.Level.SEVERE, null, ioexception);
+            Logger.getLogger(ThreadCommandReader.class.getName()).log(Level.SEVERE, null, ioexception);
         }
     }
 }

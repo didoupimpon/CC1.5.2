@@ -1,20 +1,27 @@
 package net.minecraft.server;
 
+// CraftBukkit start
+import org.bukkit.block.BlockState;
+import org.bukkit.craftbukkit.block.CraftBlockState;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.event.block.BlockPlaceEvent;
+// CraftBukkit end
+
 public class ItemSign extends Item {
 
     public ItemSign(int i) {
         super(i);
-        this.maxStackSize = 16;
-        this.a(CreativeModeTab.c);
+        this.maxStackSize = 1;
     }
 
-    public boolean interactWith(ItemStack itemstack, EntityHuman entityhuman, World world, int i, int j, int k, int l, float f, float f1, float f2) {
-        final int clickedX = i, clickedY = j, clickedZ = k; // CraftBukkit
+    public boolean a(ItemStack itemstack, EntityHuman entityhuman, World world, int i, int j, int k, int l) {
         if (l == 0) {
             return false;
         } else if (!world.getMaterial(i, j, k).isBuildable()) {
             return false;
         } else {
+            int clickedX = i, clickedY = j, clickedZ = k; // CraftBukkit
+
             if (l == 1) {
                 ++j;
             }
@@ -35,24 +42,22 @@ public class ItemSign extends Item {
                 ++i;
             }
 
-            if (!entityhuman.a(i, j, k, l, itemstack)) {
-                return false;
-            } else if (!Block.SIGN_POST.canPlace(world, i, j, k)) {
+            if (!Block.SIGN_POST.canPlace(world, i, j, k)) {
                 return false;
             } else {
-                // CraftBukkit start
-                final Block block;
-                if (l == 1) {
-                    int i1 = MathHelper.floor((double) ((entityhuman.yaw + 180.0F) * 16.0F / 360.0F) + 0.5D) & 15;
+                BlockState blockState = CraftBlockState.getBlockState(world, i, j, k); // CraftBukkit
 
-                    // world.setTypeIdAndData(i, j, k, Block.SIGN_POST.id, i1, 2);
-                    block = Block.SIGN_POST;
-                    l = i1;
+                if (l == 1) {
+                    world.setTypeIdAndData(i, j, k, Block.SIGN_POST.id, MathHelper.floor((double) ((entityhuman.yaw + 180.0F) * 16.0F / 360.0F) + 0.5D) & 15);
                 } else {
-                    // world.setTypeIdAndData(i, j, k, Block.WALL_SIGN.id, l, 2);
-                    block = Block.WALL_SIGN;
+                    world.setTypeIdAndData(i, j, k, Block.WALL_SIGN.id, l);
                 }
-                if (!ItemBlock.processBlockPlace(world, entityhuman, null, i, j, k, block.id, l, clickedX, clickedY, clickedZ)) {
+
+                // CraftBukkit start - sign
+                BlockPlaceEvent event = CraftEventFactory.callBlockPlaceEvent(world, entityhuman, blockState, clickedX, clickedY, clickedZ, l == 1 ? Block.SIGN_POST : Block.WALL_SIGN);
+
+                if (event.isCancelled() || !event.canBuild()) {
+                    event.getBlockPlaced().setTypeIdAndData(blockState.getTypeId(), blockState.getRawData(), false);
                     return false;
                 }
                 // CraftBukkit end
@@ -61,7 +66,7 @@ public class ItemSign extends Item {
                 TileEntitySign tileentitysign = (TileEntitySign) world.getTileEntity(i, j, k);
 
                 if (tileentitysign != null) {
-                    entityhuman.a((TileEntity) tileentitysign);
+                    entityhuman.a(tileentitysign);
                 }
 
                 return true;

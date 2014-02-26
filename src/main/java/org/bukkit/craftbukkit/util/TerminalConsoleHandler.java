@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jline.console.ConsoleReader;
+import jline.ConsoleReader;
 import org.bukkit.craftbukkit.Main;
 
 public class TerminalConsoleHandler extends ConsoleHandler {
@@ -19,15 +19,15 @@ public class TerminalConsoleHandler extends ConsoleHandler {
     public synchronized void flush() {
         try {
             if (Main.useJline) {
-                reader.print(ConsoleReader.RESET_LINE + "");
-                reader.flush();
+                reader.printString(ConsoleReader.RESET_LINE + "");
+                reader.flushConsole();
                 super.flush();
                 try {
                     reader.drawLine();
                 } catch (Throwable ex) {
-                    reader.getCursorBuffer().clear();
+                    reader.getCursorBuffer().clearBuffer();
                 }
-                reader.flush();
+                reader.flushConsole();
             } else {
                 super.flush();
             }

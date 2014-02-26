@@ -4,43 +4,33 @@ import java.util.Random;
 
 import org.bukkit.BlockChangeDelegate; // CraftBukkit
 
-public class WorldGenTrees extends WorldGenerator implements BlockSapling.TreeGenerator { // CraftBukkit add interface
+public class WorldGenTrees extends WorldGenerator {
 
-    private final int a;
-    private final boolean b;
-    private final int c;
-    private final int d;
-
-    public WorldGenTrees(boolean flag) {
-        this(flag, 4, 0, 0, false);
-    }
-
-    public WorldGenTrees(boolean flag, int i, int j, int k, boolean flag1) {
-        super(flag);
-        this.a = i;
-        this.c = j;
-        this.d = k;
-        this.b = flag1;
-    }
+    public WorldGenTrees() {}
 
     public boolean a(World world, Random random, int i, int j, int k) {
-        // CraftBukkit start - Moved to generate
-        return this.generate((BlockChangeDelegate) world, random, i, j, k);
+        // CraftBukkit start
+        // sk: The idea is to have (our) WorldServer implement
+        // BlockChangeDelegate and then we can implicitly cast World to
+        // WorldServer (a safe cast, AFAIK) and no code will be broken. This
+        // then allows plugins to catch manually-invoked generation events
+        return generate((BlockChangeDelegate) world, random, i, j, k);
     }
 
     public boolean generate(BlockChangeDelegate world, Random random, int i, int j, int k) {
         // CraftBukkit end
-        int l = random.nextInt(3) + this.a;
+        int l = random.nextInt(3) + 4;
         boolean flag = true;
 
-        if (j >= 1 && j + l + 1 <= 256) {
+        if (j >= 1 && j + l + 1 <= 128) {
             int i1;
-            byte b0;
             int j1;
             int k1;
+            int l1;
 
             for (i1 = j; i1 <= j + 1 + l; ++i1) {
-                b0 = 1;
+                byte b0 = 1;
+
                 if (i1 == j) {
                     b0 = 0;
                 }
@@ -49,11 +39,11 @@ public class WorldGenTrees extends WorldGenerator implements BlockSapling.TreeGe
                     b0 = 2;
                 }
 
-                for (int l1 = i - b0; l1 <= i + b0 && flag; ++l1) {
-                    for (j1 = k - b0; j1 <= k + b0 && flag; ++j1) {
-                        if (i1 >= 0 && i1 < 256) {
-                            k1 = world.getTypeId(l1, i1, j1);
-                            if (k1 != 0 && k1 != Block.LEAVES.id && k1 != Block.GRASS.id && k1 != Block.DIRT.id && k1 != Block.LOG.id) {
+                for (j1 = i - b0; j1 <= i + b0 && flag; ++j1) {
+                    for (k1 = k - b0; k1 <= k + b0 && flag; ++k1) {
+                        if (i1 >= 0 && i1 < 128) {
+                            l1 = world.getTypeId(j1, i1, k1);
+                            if (l1 != 0 && l1 != Block.LEAVES.id) {
                                 flag = false;
                             }
                         } else {
@@ -67,97 +57,32 @@ public class WorldGenTrees extends WorldGenerator implements BlockSapling.TreeGe
                 return false;
             } else {
                 i1 = world.getTypeId(i, j - 1, k);
-                if ((i1 == Block.GRASS.id || i1 == Block.DIRT.id) && j < 256 - l - 1) {
-                    this.setType(world, i, j - 1, k, Block.DIRT.id);
-                    b0 = 3;
-                    byte b1 = 0;
+                if ((i1 == Block.GRASS.id || i1 == Block.DIRT.id) && j < 128 - l - 1) {
+                    world.setRawTypeId(i, j - 1, k, Block.DIRT.id);
 
                     int i2;
-                    int j2;
-                    int k2;
 
-                    for (j1 = j - b0 + l; j1 <= j + l; ++j1) {
-                        k1 = j1 - (j + l);
-                        i2 = b1 + 1 - k1 / 2;
+                    for (i2 = j - 3 + l; i2 <= j + l; ++i2) {
+                        j1 = i2 - (j + l);
+                        k1 = 1 - j1 / 2;
 
-                        for (j2 = i - i2; j2 <= i + i2; ++j2) {
-                            k2 = j2 - i;
+                        for (l1 = i - k1; l1 <= i + k1; ++l1) {
+                            int j2 = l1 - i;
 
-                            for (int l2 = k - i2; l2 <= k + i2; ++l2) {
-                                int i3 = l2 - k;
+                            for (int k2 = k - k1; k2 <= k + k1; ++k2) {
+                                int l2 = k2 - k;
 
-                                if (Math.abs(k2) != i2 || Math.abs(i3) != i2 || random.nextInt(2) != 0 && k1 != 0) {
-                                    int j3 = world.getTypeId(j2, j1, l2);
-
-                                    if (j3 == 0 || j3 == Block.LEAVES.id) {
-                                        this.setTypeAndData(world, j2, j1, l2, Block.LEAVES.id, this.d);
-                                    }
+                                if ((Math.abs(j2) != k1 || Math.abs(l2) != k1 || random.nextInt(2) != 0 && j1 != 0) && !Block.o[world.getTypeId(l1, i2, k2)]) {
+                                    world.setRawTypeId(l1, i2, k2, Block.LEAVES.id);
                                 }
                             }
                         }
                     }
 
-                    for (j1 = 0; j1 < l; ++j1) {
-                        k1 = world.getTypeId(i, j + j1, k);
-                        if (k1 == 0 || k1 == Block.LEAVES.id) {
-                            this.setTypeAndData(world, i, j + j1, k, Block.LOG.id, this.c);
-                            if (this.b && j1 > 0) {
-                                if (random.nextInt(3) > 0 && world.isEmpty(i - 1, j + j1, k)) {
-                                    this.setTypeAndData(world, i - 1, j + j1, k, Block.VINE.id, 8);
-                                }
-
-                                if (random.nextInt(3) > 0 && world.isEmpty(i + 1, j + j1, k)) {
-                                    this.setTypeAndData(world, i + 1, j + j1, k, Block.VINE.id, 2);
-                                }
-
-                                if (random.nextInt(3) > 0 && world.isEmpty(i, j + j1, k - 1)) {
-                                    this.setTypeAndData(world, i, j + j1, k - 1, Block.VINE.id, 1);
-                                }
-
-                                if (random.nextInt(3) > 0 && world.isEmpty(i, j + j1, k + 1)) {
-                                    this.setTypeAndData(world, i, j + j1, k + 1, Block.VINE.id, 4);
-                                }
-                            }
-                        }
-                    }
-
-                    if (this.b) {
-                        for (j1 = j - 3 + l; j1 <= j + l; ++j1) {
-                            k1 = j1 - (j + l);
-                            i2 = 2 - k1 / 2;
-
-                            for (j2 = i - i2; j2 <= i + i2; ++j2) {
-                                for (k2 = k - i2; k2 <= k + i2; ++k2) {
-                                    if (world.getTypeId(j2, j1, k2) == Block.LEAVES.id) {
-                                        if (random.nextInt(4) == 0 && world.getTypeId(j2 - 1, j1, k2) == 0) {
-                                            this.b(world, j2 - 1, j1, k2, 8);
-                                        }
-
-                                        if (random.nextInt(4) == 0 && world.getTypeId(j2 + 1, j1, k2) == 0) {
-                                            this.b(world, j2 + 1, j1, k2, 2);
-                                        }
-
-                                        if (random.nextInt(4) == 0 && world.getTypeId(j2, j1, k2 - 1) == 0) {
-                                            this.b(world, j2, j1, k2 - 1, 1);
-                                        }
-
-                                        if (random.nextInt(4) == 0 && world.getTypeId(j2, j1, k2 + 1) == 0) {
-                                            this.b(world, j2, j1, k2 + 1, 4);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (random.nextInt(5) == 0 && l > 5) {
-                            for (j1 = 0; j1 < 2; ++j1) {
-                                for (k1 = 0; k1 < 4; ++k1) {
-                                    if (random.nextInt(4 - j1) == 0) {
-                                        i2 = random.nextInt(3);
-                                        this.setTypeAndData(world, i + Direction.a[Direction.f[k1]], j + l - 5 + j1, k + Direction.b[Direction.f[k1]], Block.COCOA.id, i2 << 2 | k1);
-                                    }
-                                }
-                            }
+                    for (i2 = 0; i2 < l; ++i2) {
+                        j1 = world.getTypeId(i, j + i2, k);
+                        if (j1 == 0 || j1 == Block.LEAVES.id) {
+                            world.setRawTypeId(i, j + i2, k, Block.LOG.id);
                         }
                     }
 
@@ -168,22 +93,6 @@ public class WorldGenTrees extends WorldGenerator implements BlockSapling.TreeGe
             }
         } else {
             return false;
-        }
-    }
-
-    // CraftBukkit - Changed world to BlockChangeDelegate
-    private void b(BlockChangeDelegate world, int i, int j, int k, int l) {
-        this.setTypeAndData(world, i, j, k, Block.VINE.id, l);
-        int i1 = 4;
-
-        while (true) {
-            --j;
-            if (world.getTypeId(i, j, k) != 0 || i1 <= 0) {
-                return;
-            }
-
-            this.setTypeAndData(world, i, j, k, Block.VINE.id, l);
-            --i1;
         }
     }
 }

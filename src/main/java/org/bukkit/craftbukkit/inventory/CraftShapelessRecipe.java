@@ -1,24 +1,16 @@
 package org.bukkit.craftbukkit.inventory;
 
-import java.util.List;
+import java.util.ArrayList;
 
 import net.minecraft.server.CraftingManager;
-import net.minecraft.server.ShapelessRecipes;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapelessRecipe;
+import org.bukkit.material.MaterialData;
 
 public class CraftShapelessRecipe extends ShapelessRecipe implements CraftRecipe {
-    // TODO: Could eventually use this to add a matches() method or some such
-    private ShapelessRecipes recipe;
-
     public CraftShapelessRecipe(ItemStack result) {
         super(result);
-    }
-
-    public CraftShapelessRecipe(ItemStack result, ShapelessRecipes recipe) {
-        this(result);
-        this.recipe = recipe;
     }
 
     public static CraftShapelessRecipe fromBukkitRecipe(ShapelessRecipe recipe) {
@@ -26,22 +18,25 @@ public class CraftShapelessRecipe extends ShapelessRecipe implements CraftRecipe
             return (CraftShapelessRecipe) recipe;
         }
         CraftShapelessRecipe ret = new CraftShapelessRecipe(recipe.getResult());
-        for (ItemStack ingred : recipe.getIngredientList()) {
-            ret.addIngredient(ingred.getType(), ingred.getDurability());
+        for (MaterialData ingred : recipe.getIngredientList()) {
+            ret.addIngredient(ingred);
         }
         return ret;
     }
 
     public void addToCraftingManager() {
-        List<ItemStack> ingred = this.getIngredientList();
+        ArrayList<MaterialData> ingred = this.getIngredientList();
         Object[] data = new Object[ingred.size()];
         int i = 0;
-        for (ItemStack mdata : ingred) {
-            int id = mdata.getTypeId();
-            short dmg = mdata.getDurability();
+        for (MaterialData mdata : ingred) {
+            int id = mdata.getItemTypeId();
+            byte dmg = mdata.getData();
             data[i] = new net.minecraft.server.ItemStack(id, 1, dmg);
             i++;
         }
-        CraftingManager.getInstance().registerShapelessRecipe(CraftItemStack.asNMSCopy(this.getResult()), data);
+        int id = this.getResult().getTypeId();
+        int amount = this.getResult().getAmount();
+        short durability = this.getResult().getDurability();
+        CraftingManager.a().b(new net.minecraft.server.ItemStack(id, amount, durability), data);
     }
 }

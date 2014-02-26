@@ -2,57 +2,37 @@ package net.minecraft.server;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-
 import java.io.IOException; // CraftBukkit
 
 public class Packet3Chat extends Packet {
 
-    public static int a = 119;
-    public String message;
-    private boolean c;
+    public String a;
 
-    public Packet3Chat() {
-        this.c = true;
-    }
+    public Packet3Chat() {}
 
     public Packet3Chat(String s) {
-        this(s, true);
-    }
-
-    public Packet3Chat(String s, boolean flag) {
-        this.c = true;
-
-        /* CraftBukkit start - Handle this later
-        if (s.length() > b) {
-            s = s.substring(0, b);
+        /* CraftBukkit start - handle this later
+        if (s.length() > 119) {
+            s = s.substring(0, 119);
         }
         // CraftBukkit end */
 
-        this.message = s;
-        this.c = flag;
+        this.a = s;
     }
 
     public void a(DataInputStream datainputstream) throws IOException { // CraftBukkit
-        this.message = a(datainputstream, a);
+        this.a = a(datainputstream, 119);
     }
 
     public void a(DataOutputStream dataoutputstream) throws IOException { // CraftBukkit
-        a(this.message, dataoutputstream);
+        a(this.a, dataoutputstream);
     }
 
-    public void handle(Connection connection) {
-        connection.a(this);
+    public void a(NetHandler nethandler) {
+        nethandler.a(this);
     }
 
     public int a() {
-        return 2 + this.message.length() * 2;
-    }
-
-    public boolean isServer() {
-        return this.c;
-    }
-
-    public boolean a_() {
-        return !this.message.startsWith("/");
+        return this.a.length();
     }
 }

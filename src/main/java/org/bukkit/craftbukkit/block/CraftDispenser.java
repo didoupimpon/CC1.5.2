@@ -10,6 +10,11 @@ import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.inventory.CraftInventory;
 import org.bukkit.inventory.Inventory;
 
+/**
+ * Represents a dispenser.
+ *
+ * @author sk89q
+ */
 public class CraftDispenser extends CraftBlockState implements Dispenser {
     private final CraftWorld world;
     private final TileEntityDispenser dispenser;
@@ -17,8 +22,8 @@ public class CraftDispenser extends CraftBlockState implements Dispenser {
     public CraftDispenser(final Block block) {
         super(block);
 
-        world = (CraftWorld) block.getWorld();
-        dispenser = (TileEntityDispenser) world.getTileEntityAt(getX(), getY(), getZ());
+        world = (CraftWorld)block.getWorld();
+        dispenser = (TileEntityDispenser)world.getTileEntityAt(getX(), getY(), getZ());
     }
 
     public Inventory getInventory() {
@@ -28,19 +33,20 @@ public class CraftDispenser extends CraftBlockState implements Dispenser {
     public boolean dispense() {
         Block block = getBlock();
 
-        if (block.getType() == Material.DISPENSER) {
-            BlockDispenser dispense = (BlockDispenser) net.minecraft.server.Block.DISPENSER;
-
-            dispense.dispense(world.getHandle(), getX(), getY(), getZ());
-            return true;
-        } else {
-            return false;
+        synchronized (block) {
+            if (block.getType() == Material.DISPENSER) {
+                BlockDispenser dispense = (BlockDispenser)net.minecraft.server.Block.DISPENSER;
+                dispense.dispense(world.getHandle(), getX(), getY(), getZ(), new Random());
+                return true;
+            } else {
+                return false;
+            }
         }
     }
 
     @Override
-    public boolean update(boolean force, boolean applyPhysics) {
-        boolean result = super.update(force, applyPhysics);
+    public boolean update(boolean force) {
+        boolean result = super.update(force);
 
         if (result) {
             dispenser.update();
