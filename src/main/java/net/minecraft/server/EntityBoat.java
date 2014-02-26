@@ -4,41 +4,37 @@ import java.util.List;
 
 // CraftBukkit start
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.CraftServer;
-import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
 import org.bukkit.entity.Vehicle;
-import org.bukkit.event.vehicle.VehicleCreateEvent;
 import org.bukkit.event.vehicle.VehicleDamageEvent;
 import org.bukkit.event.vehicle.VehicleDestroyEvent;
-import org.bukkit.event.vehicle.VehicleEnterEvent;
 import org.bukkit.event.vehicle.VehicleEntityCollisionEvent;
 import org.bukkit.event.vehicle.VehicleMoveEvent;
-import org.bukkit.event.vehicle.VehicleUpdateEvent;
 // CraftBukkit end
 
 public class EntityBoat extends Entity {
 
-    public int damage;
-    public int b;
-    public int c;
-    private int d;
+    private boolean a;
+    private double b;
+    private int c;
+    private double d;
     private double e;
     private double f;
     private double g;
     private double h;
-    private double i;
 
     // CraftBukkit start
     public double maxSpeed = 0.4D;
+    public double occupiedDeceleration = 0.2D;
+    public double unoccupiedDeceleration = -1;
+    public boolean landBoats = false;
 
     @Override
     public void collide(Entity entity) {
-        CraftServer server = ((WorldServer) this.world).getServer();
-        Vehicle vehicle = (Vehicle) this.getBukkitEntity();
         org.bukkit.entity.Entity hitEntity = (entity == null) ? null : entity.getBukkitEntity();
 
-        VehicleEntityCollisionEvent event = new VehicleEntityCollisionEvent(vehicle, hitEntity);
-        server.getPluginManager().callEvent(event);
+        VehicleEntityCollisionEvent event = new VehicleEntityCollisionEvent((Vehicle) this.getBukkitEntity(), hitEntity);
+        this.world.getServer().getPluginManager().callEvent(event);
 
         if (event.isCancelled()) {
             return;
@@ -50,29 +46,32 @@ public class EntityBoat extends Entity {
 
     public EntityBoat(World world) {
         super(world);
-        this.damage = 0;
-        this.b = 0;
-        this.c = 1;
-        this.aE = true;
-        this.b(1.5F, 0.6F);
-        this.height = this.width / 2.0F;
+        this.a = true;
+        this.b = 0.07D;
+        this.m = true;
+        this.a(1.5F, 0.6F);
+        this.height = this.length / 2.0F;
     }
 
-    protected boolean n() {
+    protected boolean f_() {
         return false;
     }
 
-    protected void b() {}
+    protected void a() {
+        this.datawatcher.a(17, new Integer(0));
+        this.datawatcher.a(18, new Integer(1));
+        this.datawatcher.a(19, new Integer(0));
+    }
 
-    public AxisAlignedBB a_(Entity entity) {
+    public AxisAlignedBB g(Entity entity) {
         return entity.boundingBox;
     }
 
-    public AxisAlignedBB e_() {
+    public AxisAlignedBB D() {
         return this.boundingBox;
     }
 
-    public boolean d_() {
+    public boolean L() {
         return true;
     }
 
@@ -86,57 +85,53 @@ public class EntityBoat extends Entity {
         this.lastY = d1;
         this.lastZ = d2;
 
-        // CraftBukkit start
-        CraftServer server = ((WorldServer) world).getServer();
-        Vehicle vehicle = (Vehicle) this.getBukkitEntity();
-        VehicleCreateEvent event = new VehicleCreateEvent(vehicle);
-        server.getPluginManager().callEvent(event);
-        // CraftBukkit end
+        this.world.getServer().getPluginManager().callEvent(new org.bukkit.event.vehicle.VehicleCreateEvent((Vehicle) this.getBukkitEntity())); // CraftBukkit
     }
 
-    public double m() {
-        return (double) this.width * 0.0D - 0.30000001192092896D;
+    public double W() {
+        return (double) this.length * 0.0D - 0.30000001192092896D;
     }
 
-    public boolean damageEntity(Entity entity, int i) {
-        if (!this.world.isStatic && !this.dead) {
+    public boolean damageEntity(DamageSource damagesource, int i) {
+        if (this.isInvulnerable()) {
+            return false;
+        } else if (!this.world.isStatic && !this.dead) {
             // CraftBukkit start
             Vehicle vehicle = (Vehicle) this.getBukkitEntity();
-            org.bukkit.entity.Entity attacker = (entity == null) ? null : entity.getBukkitEntity();
-            int damage = i;
+            org.bukkit.entity.Entity attacker = (damagesource.getEntity() == null) ? null : damagesource.getEntity().getBukkitEntity();
 
-            VehicleDamageEvent event = new VehicleDamageEvent(vehicle, attacker, damage);
-            ((WorldServer) this.world).getServer().getPluginManager().callEvent(event);
+            VehicleDamageEvent event = new VehicleDamageEvent(vehicle, attacker, i);
+            this.world.getServer().getPluginManager().callEvent(event);
 
             if (event.isCancelled()) {
                 return true;
             }
+            // i = event.getDamage(); // TODO Why don't we do this?
             // CraftBukkit end
 
-            this.c = -this.c;
-            this.b = 10;
-            this.damage += i * 10;
-            this.ab();
-            if (this.damage > 40) {
+            this.h(-this.h());
+            this.b(10);
+            this.setDamage(this.getDamage() + i * 10);
+            this.J();
+            boolean flag = damagesource.getEntity() instanceof EntityHuman && ((EntityHuman) damagesource.getEntity()).abilities.canInstantlyBuild;
 
+            if (flag || this.getDamage() > 40) {
                 // CraftBukkit start
                 VehicleDestroyEvent destroyEvent = new VehicleDestroyEvent(vehicle, attacker);
-                ((WorldServer) this.world).getServer().getPluginManager().callEvent(destroyEvent);
+                this.world.getServer().getPluginManager().callEvent(destroyEvent);
 
                 if (destroyEvent.isCancelled()) {
-                    this.damage = 40; // Maximize damage so this doesn't get triggered again right away
+                    this.setDamage(40); // Maximize damage so this doesn't get triggered again right away
                     return true;
                 }
                 // CraftBukkit end
 
-                int j;
-
-                for (j = 0; j < 3; ++j) {
-                    this.a(Block.WOOD.id, 1, 0.0F);
+                if (this.passenger != null) {
+                    this.passenger.mount(this);
                 }
 
-                for (j = 0; j < 2; ++j) {
-                    this.a(Item.STICK.id, 1, 0.0F);
+                if (!flag) {
+                    this.a(Item.BOAT.id, 1, 0.0F);
                 }
 
                 this.die();
@@ -148,11 +143,11 @@ public class EntityBoat extends Entity {
         }
     }
 
-    public boolean o_() {
+    public boolean K() {
         return !this.dead;
     }
 
-    public void p_() {
+    public void l_() {
         // CraftBukkit start
         double prevX = this.locX;
         double prevY = this.locY;
@@ -161,13 +156,13 @@ public class EntityBoat extends Entity {
         float prevPitch = this.pitch;
         // CraftBukkit end
 
-        super.p_();
-        if (this.b > 0) {
-            --this.b;
+        super.l_();
+        if (this.g() > 0) {
+            this.b(this.g() - 1);
         }
 
-        if (this.damage > 0) {
-            --this.damage;
+        if (this.getDamage() > 0) {
+            this.setDamage(this.getDamage() - 1);
         }
 
         this.lastX = this.locX;
@@ -179,42 +174,58 @@ public class EntityBoat extends Entity {
         for (int i = 0; i < b0; ++i) {
             double d1 = this.boundingBox.b + (this.boundingBox.e - this.boundingBox.b) * (double) (i + 0) / (double) b0 - 0.125D;
             double d2 = this.boundingBox.b + (this.boundingBox.e - this.boundingBox.b) * (double) (i + 1) / (double) b0 - 0.125D;
-            AxisAlignedBB axisalignedbb = AxisAlignedBB.b(this.boundingBox.a, d1, this.boundingBox.c, this.boundingBox.d, d2, this.boundingBox.f);
+            AxisAlignedBB axisalignedbb = AxisAlignedBB.a().a(this.boundingBox.a, d1, this.boundingBox.c, this.boundingBox.d, d2, this.boundingBox.f);
 
             if (this.world.b(axisalignedbb, Material.WATER)) {
                 d0 += 1.0D / (double) b0;
             }
         }
 
-        double d3;
+        double d3 = Math.sqrt(this.motX * this.motX + this.motZ * this.motZ);
         double d4;
         double d5;
-        double d6;
 
-        if (this.world.isStatic) {
-            if (this.d > 0) {
-                d3 = this.locX + (this.e - this.locX) / (double) this.d;
-                d4 = this.locY + (this.f - this.locY) / (double) this.d;
-                d5 = this.locZ + (this.g - this.locZ) / (double) this.d;
+        if (d3 > 0.26249999999999996D) {
+            d4 = Math.cos((double) this.yaw * 3.141592653589793D / 180.0D);
+            d5 = Math.sin((double) this.yaw * 3.141592653589793D / 180.0D);
 
-                for (d6 = this.h - (double) this.yaw; d6 < -180.0D; d6 += 360.0D) {
-                    ;
+            for (int j = 0; (double) j < 1.0D + d3 * 60.0D; ++j) {
+                double d6 = (double) (this.random.nextFloat() * 2.0F - 1.0F);
+                double d7 = (double) (this.random.nextInt(2) * 2 - 1) * 0.7D;
+                double d8;
+                double d9;
+
+                if (this.random.nextBoolean()) {
+                    d8 = this.locX - d4 * d6 * 0.8D + d5 * d7;
+                    d9 = this.locZ - d5 * d6 * 0.8D - d4 * d7;
+                    this.world.addParticle("splash", d8, this.locY - 0.125D, d9, this.motX, this.motY, this.motZ);
+                } else {
+                    d8 = this.locX + d4 + d5 * d6 * 0.7D;
+                    d9 = this.locZ + d5 - d4 * d6 * 0.7D;
+                    this.world.addParticle("splash", d8, this.locY - 0.125D, d9, this.motX, this.motY, this.motZ);
                 }
+            }
+        }
 
-                while (d6 >= 180.0D) {
-                    d6 -= 360.0D;
-                }
+        double d10;
+        double d11;
 
-                this.yaw = (float) ((double) this.yaw + d6 / (double) this.d);
-                this.pitch = (float) ((double) this.pitch + (this.i - (double) this.pitch) / (double) this.d);
-                --this.d;
-                this.setPosition(d3, d4, d5);
-                this.c(this.yaw, this.pitch);
+        if (this.world.isStatic && this.a) {
+            if (this.c > 0) {
+                d4 = this.locX + (this.d - this.locX) / (double) this.c;
+                d5 = this.locY + (this.e - this.locY) / (double) this.c;
+                d10 = this.locZ + (this.f - this.locZ) / (double) this.c;
+                d11 = MathHelper.g(this.g - (double) this.yaw);
+                this.yaw = (float) ((double) this.yaw + d11 / (double) this.c);
+                this.pitch = (float) ((double) this.pitch + (this.h - (double) this.pitch) / (double) this.c);
+                --this.c;
+                this.setPosition(d4, d5, d10);
+                this.b(this.yaw, this.pitch);
             } else {
-                d3 = this.locX + this.motX;
-                d4 = this.locY + this.motY;
-                d5 = this.locZ + this.motZ;
-                this.setPosition(d3, d4, d5);
+                d4 = this.locX + this.motX;
+                d5 = this.locY + this.motY;
+                d10 = this.locZ + this.motZ;
+                this.setPosition(d4, d5, d10);
                 if (this.onGround) {
                     this.motX *= 0.5D;
                     this.motY *= 0.5D;
@@ -226,76 +237,82 @@ public class EntityBoat extends Entity {
                 this.motZ *= 0.9900000095367432D;
             }
         } else {
-            d3 = d0 * 2.0D - 1.0D;
-            this.motY += 0.03999999910593033D * d3;
+            if (d0 < 1.0D) {
+                d4 = d0 * 2.0D - 1.0D;
+                this.motY += 0.03999999910593033D * d4;
+            } else {
+                if (this.motY < 0.0D) {
+                    this.motY /= 2.0D;
+                }
+
+                this.motY += 0.007000000216066837D;
+            }
+
             if (this.passenger != null) {
-                this.motX += this.passenger.motX * 0.2D;
-                this.motZ += this.passenger.motZ * 0.2D;
+                this.motX += this.passenger.motX * this.b;
+                this.motZ += this.passenger.motZ * this.b;
+            }
+            // CraftBukkit start - Support unoccupied deceleration
+            else if (unoccupiedDeceleration >= 0) {
+                this.motX *= unoccupiedDeceleration;
+                this.motZ *= unoccupiedDeceleration;
+                // Kill lingering speed
+                if (motX <= 0.00001) {
+                    motX = 0;
+                }
+                if (motZ <= 0.00001) {
+                    motZ = 0;
+                }
+            }
+            // CraftBukkit end
+
+            d4 = Math.sqrt(this.motX * this.motX + this.motZ * this.motZ);
+            if (d4 > 0.35D) {
+                d5 = 0.35D / d4;
+                this.motX *= d5;
+                this.motZ *= d5;
+                d4 = 0.35D;
             }
 
-            // CraftBukkit
-            d4 = this.maxSpeed;
-            if (this.motX < -d4) {
-                this.motX = -d4;
+            if (d4 > d3 && this.b < 0.35D) {
+                this.b += (0.35D - this.b) / 35.0D;
+                if (this.b > 0.35D) {
+                    this.b = 0.35D;
+                }
+            } else {
+                this.b -= (this.b - 0.07D) / 35.0D;
+                if (this.b < 0.07D) {
+                    this.b = 0.07D;
+                }
             }
 
-            if (this.motX > d4) {
-                this.motX = d4;
-            }
-
-            if (this.motZ < -d4) {
-                this.motZ = -d4;
-            }
-
-            if (this.motZ > d4) {
-                this.motZ = d4;
-            }
-
-            if (this.onGround) {
+            if (this.onGround && !this.landBoats) { // CraftBukkit
                 this.motX *= 0.5D;
                 this.motY *= 0.5D;
                 this.motZ *= 0.5D;
             }
 
             this.move(this.motX, this.motY, this.motZ);
-            d5 = Math.sqrt(this.motX * this.motX + this.motZ * this.motZ);
-            double d7;
+            if (this.positionChanged && d3 > 0.2D) {
+                if (!this.world.isStatic && !this.dead) {
+                    // CraftBukkit start
+                    Vehicle vehicle = (Vehicle) this.getBukkitEntity();
+                    VehicleDestroyEvent destroyEvent = new VehicleDestroyEvent(vehicle, null);
+                    this.world.getServer().getPluginManager().callEvent(destroyEvent);
+                    if (!destroyEvent.isCancelled()) {
+                        this.die();
 
-            if (d5 > 0.15D) {
-                d6 = Math.cos((double) this.yaw * 3.141592653589793D / 180.0D);
-                d7 = Math.sin((double) this.yaw * 3.141592653589793D / 180.0D);
+                        int k;
 
-                for (int j = 0; (double) j < 1.0D + d5 * 60.0D; ++j) {
-                    double d8 = (double) (this.random.nextFloat() * 2.0F - 1.0F);
-                    double d9 = (double) (this.random.nextInt(2) * 2 - 1) * 0.7D;
-                    double d10;
-                    double d11;
+                        for (k = 0; k < 3; ++k) {
+                            this.a(Block.WOOD.id, 1, 0.0F);
+                        }
 
-                    if (this.random.nextBoolean()) {
-                        d10 = this.locX - d6 * d8 * 0.8D + d7 * d9;
-                        d11 = this.locZ - d7 * d8 * 0.8D - d6 * d9;
-                        this.world.a("splash", d10, this.locY - 0.125D, d11, this.motX, this.motY, this.motZ);
-                    } else {
-                        d10 = this.locX + d6 + d7 * d8 * 0.7D;
-                        d11 = this.locZ + d7 - d6 * d8 * 0.7D;
-                        this.world.a("splash", d10, this.locY - 0.125D, d11, this.motX, this.motY, this.motZ);
+                        for (k = 0; k < 2; ++k) {
+                            this.a(Item.STICK.id, 1, 0.0F);
+                        }
                     }
-                }
-            }
-
-            if (this.positionChanged && d5 > 0.15D) {
-                if (!this.world.isStatic) {
-                    this.die();
-
-                    int k;
-
-                    for (k = 0; k < 3; ++k) {
-                        this.a(Block.WOOD.id, 1, 0.0F);
-                    }
-
-                    for (k = 0; k < 2; ++k) {
-                        this.a(Item.STICK.id, 1, 0.0F);
-                    }
+                    // CraftBukkit end
                 }
             } else {
                 this.motX *= 0.9900000095367432D;
@@ -304,43 +321,35 @@ public class EntityBoat extends Entity {
             }
 
             this.pitch = 0.0F;
-            d6 = (double) this.yaw;
-            d7 = this.lastX - this.locX;
-            double d12 = this.lastZ - this.locZ;
-
-            if (d7 * d7 + d12 * d12 > 0.0010D) {
-                d6 = (double) ((float) (Math.atan2(d12, d7) * 180.0D / 3.141592653589793D));
+            d5 = (double) this.yaw;
+            d10 = this.lastX - this.locX;
+            d11 = this.lastZ - this.locZ;
+            if (d10 * d10 + d11 * d11 > 0.001D) {
+                d5 = (double) ((float) (Math.atan2(d11, d10) * 180.0D / 3.141592653589793D));
             }
 
-            double d13;
+            double d12 = MathHelper.g(d5 - (double) this.yaw);
 
-            for (d13 = d6 - (double) this.yaw; d13 >= 180.0D; d13 -= 360.0D) {
-                ;
+            if (d12 > 20.0D) {
+                d12 = 20.0D;
             }
 
-            while (d13 < -180.0D) {
-                d13 += 360.0D;
+            if (d12 < -20.0D) {
+                d12 = -20.0D;
             }
 
-            if (d13 > 20.0D) {
-                d13 = 20.0D;
-            }
-
-            if (d13 < -20.0D) {
-                d13 = -20.0D;
-            }
-
-            this.yaw = (float) ((double) this.yaw + d13);
-            this.c(this.yaw, this.pitch);
+            this.yaw = (float) ((double) this.yaw + d12);
+            this.b(this.yaw, this.pitch);
 
             // CraftBukkit start
-            CraftServer server = ((WorldServer) this.world).getServer();
-            CraftWorld world = ((WorldServer) this.world).getWorld();
-            Location from = new Location(world, prevX, prevY, prevZ, prevYaw, prevPitch);
-            Location to = new Location(world, this.locX, this.locY, this.locZ, this.yaw, this.pitch);
+            org.bukkit.Server server = this.world.getServer();
+            org.bukkit.World bworld = this.world.getWorld();
+
+            Location from = new Location(bworld, prevX, prevY, prevZ, prevYaw, prevPitch);
+            Location to = new Location(bworld, this.locX, this.locY, this.locZ, this.yaw, this.pitch);
             Vehicle vehicle = (Vehicle) this.getBukkitEntity();
 
-            server.getPluginManager().callEvent(new VehicleUpdateEvent(vehicle));
+            server.getPluginManager().callEvent(new org.bukkit.event.vehicle.VehicleUpdateEvent(vehicle));
 
             if (!from.equals(to)) {
                 VehicleMoveEvent event = new VehicleMoveEvent(vehicle, from, to);
@@ -348,30 +357,62 @@ public class EntityBoat extends Entity {
             }
             // CraftBukkit end
 
-            List list = this.world.b((Entity) this, this.boundingBox.b(0.20000000298023224D, 0.0D, 0.20000000298023224D));
+            if (!this.world.isStatic) {
+                List list = this.world.getEntities(this, this.boundingBox.grow(0.20000000298023224D, 0.0D, 0.20000000298023224D));
+                int l;
 
-            if (list != null && list.size() > 0) {
-                for (int l = 0; l < list.size(); ++l) {
-                    Entity entity = (Entity) list.get(l);
+                if (list != null && !list.isEmpty()) {
+                    for (l = 0; l < list.size(); ++l) {
+                        Entity entity = (Entity) list.get(l);
 
-                    if (entity != this.passenger && entity.d_() && entity instanceof EntityBoat) {
-                        entity.collide(this);
+                        if (entity != this.passenger && entity.L() && entity instanceof EntityBoat) {
+                            entity.collide(this);
+                        }
                     }
                 }
-            }
 
-            if (this.passenger != null && this.passenger.dead) {
-                this.passenger = null;
+                for (l = 0; l < 4; ++l) {
+                    int i1 = MathHelper.floor(this.locX + ((double) (l % 2) - 0.5D) * 0.8D);
+                    int j1 = MathHelper.floor(this.locZ + ((double) (l / 2) - 0.5D) * 0.8D);
+
+                    for (int k1 = 0; k1 < 2; ++k1) {
+                        int l1 = MathHelper.floor(this.locY) + k1;
+                        int i2 = this.world.getTypeId(i1, l1, j1);
+
+                        if (i2 == Block.SNOW.id) {
+                            // CraftBukkit start
+                            if (CraftEventFactory.callEntityChangeBlockEvent(this, i1, l1, j1, 0, 0).isCancelled()) {
+                                continue;
+                            }
+                            // CraftBukkit end
+
+                            this.world.setAir(i1, l1, j1);
+                        } else if (i2 == Block.WATER_LILY.id) {
+                            // CraftBukkit start
+                            if (CraftEventFactory.callEntityChangeBlockEvent(this, i1, l1, j1, 0, 0).isCancelled()) {
+                                continue;
+                            }
+                            // CraftBukkit end
+
+                            this.world.setAir(i1, l1, j1, true);
+                        }
+                    }
+                }
+
+                if (this.passenger != null && this.passenger.dead) {
+                    this.passenger.vehicle = null; // CraftBukkit
+                    this.passenger = null;
+                }
             }
         }
     }
 
-    public void f() {
+    public void U() {
         if (this.passenger != null) {
             double d0 = Math.cos((double) this.yaw * 3.141592653589793D / 180.0D) * 0.4D;
             double d1 = Math.sin((double) this.yaw * 3.141592653589793D / 180.0D) * 0.4D;
 
-            this.passenger.setPosition(this.locX + d0, this.locY + this.m() + this.passenger.F(), this.locZ + d1);
+            this.passenger.setPosition(this.locX + d0, this.locY + this.W() + this.passenger.V(), this.locZ + d1);
         }
     }
 
@@ -379,28 +420,39 @@ public class EntityBoat extends Entity {
 
     protected void a(NBTTagCompound nbttagcompound) {}
 
-    public boolean a(EntityHuman entityhuman) {
+    public boolean a_(EntityHuman entityhuman) {
         if (this.passenger != null && this.passenger instanceof EntityHuman && this.passenger != entityhuman) {
             return true;
         } else {
             if (!this.world.isStatic) {
-                // CraftBukkit start
-                CraftServer server = ((WorldServer) this.world).getServer();
-                Vehicle vehicle = (Vehicle) this.getBukkitEntity();
-                org.bukkit.entity.Entity player = entityhuman.getBukkitEntity();
-
-                VehicleEnterEvent event = new VehicleEnterEvent(vehicle, player);
-                server.getPluginManager().callEvent(event);
-
-                if (event.isCancelled()) {
-                    return true;
-                }
-                // CraftBukkit end
-
                 entityhuman.mount(this);
             }
 
             return true;
         }
+    }
+
+    public void setDamage(int i) {
+        this.datawatcher.watch(19, Integer.valueOf(i));
+    }
+
+    public int getDamage() {
+        return this.datawatcher.getInt(19);
+    }
+
+    public void b(int i) {
+        this.datawatcher.watch(17, Integer.valueOf(i));
+    }
+
+    public int g() {
+        return this.datawatcher.getInt(17);
+    }
+
+    public void h(int i) {
+        this.datawatcher.watch(18, Integer.valueOf(i));
+    }
+
+    public int h() {
+        return this.datawatcher.getInt(18);
     }
 }

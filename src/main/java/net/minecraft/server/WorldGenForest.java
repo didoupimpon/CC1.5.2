@@ -4,17 +4,15 @@ import java.util.Random;
 
 import org.bukkit.BlockChangeDelegate; // CraftBukkit
 
-public class WorldGenForest extends WorldGenerator {
+public class WorldGenForest extends WorldGenerator implements BlockSapling.TreeGenerator { // CraftBukkit add interface
 
-    public WorldGenForest() {}
+    public WorldGenForest(boolean flag) {
+        super(flag);
+    }
 
     public boolean a(World world, Random random, int i, int j, int k) {
-        // CraftBukkit start
-        // sk: The idea is to have (our) WorldServer implement
-        // BlockChangeDelegate and then we can implicitly cast World to
-        // WorldServer (a safe cast, AFAIK) and no code will be broken. This
-        // then allows plugins to catch manually-invoked generation events
-        return generate((BlockChangeDelegate) world, random, i, j, k);
+        // CraftBukkit start - Moved to generate
+        return this.generate((BlockChangeDelegate) world, random, i, j, k);
     }
 
     public boolean generate(BlockChangeDelegate world, Random random, int i, int j, int k) {
@@ -22,7 +20,7 @@ public class WorldGenForest extends WorldGenerator {
         int l = random.nextInt(3) + 5;
         boolean flag = true;
 
-        if (j >= 1 && j + l + 1 <= 128) {
+        if (j >= 1 && j + l + 1 <= 256) {
             int i1;
             int j1;
             int k1;
@@ -41,7 +39,7 @@ public class WorldGenForest extends WorldGenerator {
 
                 for (j1 = i - b0; j1 <= i + b0 && flag; ++j1) {
                     for (k1 = k - b0; k1 <= k + b0 && flag; ++k1) {
-                        if (i1 >= 0 && i1 < 128) {
+                        if (i1 >= 0 && i1 < 256) {
                             l1 = world.getTypeId(j1, i1, k1);
                             if (l1 != 0 && l1 != Block.LEAVES.id) {
                                 flag = false;
@@ -57,8 +55,8 @@ public class WorldGenForest extends WorldGenerator {
                 return false;
             } else {
                 i1 = world.getTypeId(i, j - 1, k);
-                if ((i1 == Block.GRASS.id || i1 == Block.DIRT.id) && j < 128 - l - 1) {
-                    world.setRawTypeId(i, j - 1, k, Block.DIRT.id);
+                if ((i1 == Block.GRASS.id || i1 == Block.DIRT.id) && j < 256 - l - 1) {
+                    this.setType(world, i, j - 1, k, Block.DIRT.id);
 
                     int i2;
 
@@ -72,8 +70,12 @@ public class WorldGenForest extends WorldGenerator {
                             for (int k2 = k - k1; k2 <= k + k1; ++k2) {
                                 int l2 = k2 - k;
 
-                                if ((Math.abs(j2) != k1 || Math.abs(l2) != k1 || random.nextInt(2) != 0 && j1 != 0) && !Block.o[world.getTypeId(l1, i2, k2)]) {
-                                    world.setRawTypeIdAndData(l1, i2, k2, Block.LEAVES.id, 2);
+                                if (Math.abs(j2) != k1 || Math.abs(l2) != k1 || random.nextInt(2) != 0 && j1 != 0) {
+                                    int i3 = world.getTypeId(l1, i2, k2);
+
+                                    if (i3 == 0 || i3 == Block.LEAVES.id) {
+                                        this.setTypeAndData(world, l1, i2, k2, Block.LEAVES.id, 2);
+                                    }
                                 }
                             }
                         }
@@ -82,7 +84,7 @@ public class WorldGenForest extends WorldGenerator {
                     for (i2 = 0; i2 < l; ++i2) {
                         j1 = world.getTypeId(i, j + i2, k);
                         if (j1 == 0 || j1 == Block.LEAVES.id) {
-                            world.setRawTypeIdAndData(i, j + i2, k, Block.LOG.id, 2);
+                            this.setTypeAndData(world, i, j + i2, k, Block.LOG.id, 2);
                         }
                     }
 

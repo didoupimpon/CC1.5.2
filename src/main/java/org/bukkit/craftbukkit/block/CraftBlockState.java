@@ -1,4 +1,3 @@
-
 package org.bukkit.craftbukkit.block;
 
 import org.bukkit.Location;
@@ -10,7 +9,10 @@ import org.bukkit.block.BlockState;
 import org.bukkit.craftbukkit.CraftChunk;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.material.MaterialData;
-import net.minecraft.server.WorldServer;
+import org.bukkit.metadata.MetadataValue;
+import org.bukkit.plugin.Plugin;
+
+import java.util.List;
 
 public class CraftBlockState implements BlockState {
     private final CraftWorld world;
@@ -20,74 +22,44 @@ public class CraftBlockState implements BlockState {
     private final int z;
     protected int type;
     protected MaterialData data;
-    protected byte light;
+    protected final byte light;
 
     public CraftBlockState(final Block block) {
-        this.world = (CraftWorld)block.getWorld();
+        this.world = (CraftWorld) block.getWorld();
         this.x = block.getX();
         this.y = block.getY();
         this.z = block.getZ();
         this.type = block.getTypeId();
         this.light = block.getLightLevel();
-        this.chunk = (CraftChunk)block.getChunk();
+        this.chunk = (CraftChunk) block.getChunk();
 
         createData(block.getData());
     }
 
-    public static BlockState getBlockState(net.minecraft.server.World world, int x, int y, int z) {
-        return new CraftBlockState(((WorldServer) world).getWorld().getBlockAt(x, y, z));
+    public static CraftBlockState getBlockState(net.minecraft.server.World world, int x, int y, int z) {
+        return new CraftBlockState(world.getWorld().getBlockAt(x, y, z));
     }
 
-    /**
-     * Gets the world which contains this Block
-     *
-     * @return World containing this block
-     */
     public World getWorld() {
         return world;
     }
 
-    /**
-     * Gets the x-coordinate of this block
-     *
-     * @return x-coordinate
-     */
     public int getX() {
         return x;
     }
 
-    /**
-     * Gets the y-coordinate of this block
-     *
-     * @return y-coordinate
-     */
     public int getY() {
         return y;
     }
 
-    /**
-     * Gets the z-coordinate of this block
-     *
-     * @return z-coordinate
-     */
     public int getZ() {
         return z;
     }
 
-    /**
-     * Gets the chunk which contains this block
-     *
-     * @return Containing Chunk
-     */
     public Chunk getChunk() {
         return chunk;
     }
 
-    /**
-     * Sets the metadata for this block
-     *
-     * @param data New block specific metadata
-     */
     public void setData(final MaterialData data) {
         Material mat = getType();
 
@@ -103,59 +75,31 @@ public class CraftBlockState implements BlockState {
         }
     }
 
-    /**
-     * Gets the metadata for this block
-     *
-     * @return block specific metadata
-     */
     public MaterialData getData() {
         return data;
     }
 
-    /**
-     * Sets the type of this block
-     *
-     * @param type Material to change this block to
-     */
     public void setType(final Material type) {
         setTypeId(type.getId());
     }
 
-    /**
-     * Sets the type-id of this block
-     *
-     * @param type Type-Id to change this block to
-     */
     public boolean setTypeId(final int type) {
-        this.type = type;
+        if (this.type != type) {
+            this.type = type;
 
-        createData((byte)0);
+            createData((byte) 0);
+        }
         return true;
     }
 
-    /**
-     * Gets the type of this block
-     *
-     * @return block type
-     */
     public Material getType() {
         return Material.getMaterial(getTypeId());
     }
 
-    /**
-     * Gets the type-id of this block
-     *
-     * @return block type-id
-     */
     public int getTypeId() {
         return type;
     }
 
-    /**
-     * Gets the light level between 0-15
-     *
-     * @return light level
-     */
     public byte getLightLevel() {
         return light;
     }
@@ -169,25 +113,28 @@ public class CraftBlockState implements BlockState {
     }
 
     public boolean update(boolean force) {
+        return update(force, true);
+    }
+
+    public boolean update(boolean force, boolean applyPhysics) {
         Block block = getBlock();
 
-        synchronized (block) {
-            if (block.getType() != this.getType()) {
-                if (force) {
-                    block.setTypeId(this.getTypeId());
-                } else {
-                    return false;
-                }
+        if (block.getType() != getType()) {
+            if (force) {
+                block.setTypeId(getTypeId(), applyPhysics);
+            } else {
+                return false;
             }
-
-            block.setData(getRawData());
         }
+
+        block.setData(getRawData(), applyPhysics);
+        world.getHandle().notify(x, y, z);
 
         return true;
     }
 
     private void createData(final byte data) {
-        Material mat = Material.getMaterial(type);
+        Material mat = getType();
         if (mat == null || mat.getData() == null) {
             this.data = new MaterialData(type, data);
         } else {
@@ -203,7 +150,78 @@ public class CraftBlockState implements BlockState {
         return new Location(world, x, y, z);
     }
 
-    public void setData(byte data) {
-        createData(data);
+    public Location getLocation(Location loc) {
+        if (loc != null) {
+            loc.setWorld(world);
+            loc.setX(x);
+            loc.setY(y);
+            loc.setZ(z);
+            loc.setYaw(0);
+            loc.setPitch(0);
+        }
+
+        return loc;
+    }
+
+    public void setRawData(byte data) {
+        this.data.setData(data);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final CraftBlockState other = (CraftBlockState) obj;
+        if (this.world != other.world && (this.world == null || !this.world.equals(other.world))) {
+            return false;
+        }
+        if (this.x != other.x) {
+            return false;
+        }
+        if (this.y != other.y) {
+            return false;
+        }
+        if (this.z != other.z) {
+            return false;
+        }
+        if (this.type != other.type) {
+            return false;
+        }
+        if (this.data != other.data && (this.data == null || !this.data.equals(other.data))) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 73 * hash + (this.world != null ? this.world.hashCode() : 0);
+        hash = 73 * hash + this.x;
+        hash = 73 * hash + this.y;
+        hash = 73 * hash + this.z;
+        hash = 73 * hash + this.type;
+        hash = 73 * hash + (this.data != null ? this.data.hashCode() : 0);
+        return hash;
+    }
+
+    public void setMetadata(String metadataKey, MetadataValue newMetadataValue) {
+        chunk.getCraftWorld().getBlockMetadata().setMetadata(getBlock(), metadataKey, newMetadataValue);
+    }
+
+    public List<MetadataValue> getMetadata(String metadataKey) {
+        return chunk.getCraftWorld().getBlockMetadata().getMetadata(getBlock(), metadataKey);
+    }
+
+    public boolean hasMetadata(String metadataKey) {
+        return chunk.getCraftWorld().getBlockMetadata().hasMetadata(getBlock(), metadataKey);
+    }
+
+    public void removeMetadata(String metadataKey, Plugin owningPlugin) {
+        chunk.getCraftWorld().getBlockMetadata().removeMetadata(getBlock(), metadataKey, owningPlugin);
     }
 }

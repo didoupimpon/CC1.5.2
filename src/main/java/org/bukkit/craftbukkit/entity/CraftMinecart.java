@@ -1,92 +1,60 @@
 package org.bukkit.craftbukkit.entity;
 
-import net.minecraft.server.EntityMinecart;
+import net.minecraft.server.EntityMinecartAbstract;
+
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.entity.Minecart;
 import org.bukkit.util.Vector;
 
-/**
- * A minecart.
- *
- * @author sk89q
- */
-public class CraftMinecart extends CraftVehicle implements Minecart {
-    /**
-     * Stores the minecart type id, which is used by Minecraft to differentiate
-     * minecart types. Here we use subclasses.
-     */
-    public enum Type {
-        Minecart(0),
-        StorageMinecart(1),
-        PoweredMinecart(2);
-
-        private final int id;
-
-        private Type(int id) {
-            this.id = id;
-        }
-
-        public int getId() {
-            return id;
-        }
-    }
-
-    protected EntityMinecart minecart;
-
-    public CraftMinecart(CraftServer server, EntityMinecart entity) {
+public abstract class CraftMinecart extends CraftVehicle implements Minecart {
+    public CraftMinecart(CraftServer server, EntityMinecartAbstract entity) {
         super(server, entity);
-        minecart = entity;
     }
 
     public void setDamage(int damage) {
-        minecart.damage = damage;
+        getHandle().setDamage(damage);
     }
 
     public int getDamage() {
-        return minecart.damage;
+        return getHandle().getDamage();
     }
 
     public double getMaxSpeed() {
-        return minecart.maxSpeed;
+        return getHandle().maxSpeed;
     }
 
     public void setMaxSpeed(double speed) {
         if (speed >= 0D) {
-            minecart.maxSpeed = speed;
+            getHandle().maxSpeed = speed;
         }
     }
 
     public boolean isSlowWhenEmpty() {
-        return minecart.slowWhenEmpty;
+        return getHandle().slowWhenEmpty;
     }
 
     public void setSlowWhenEmpty(boolean slow) {
-        minecart.slowWhenEmpty = slow;
+        getHandle().slowWhenEmpty = slow;
     }
 
     public Vector getFlyingVelocityMod() {
-        return new Vector(minecart.flyingX, minecart.flyingY, minecart.flyingZ);
+        return getHandle().getFlyingVelocityMod();
     }
 
     public void setFlyingVelocityMod(Vector flying) {
-        minecart.flyingX = flying.getX();
-        minecart.flyingY = flying.getY();
-        minecart.flyingZ = flying.getZ();
+        getHandle().setFlyingVelocityMod(flying);
     }
 
     public Vector getDerailedVelocityMod() {
-        return new Vector(minecart.derailedX, minecart.derailedY, minecart.derailedZ);
+        return getHandle().getDerailedVelocityMod();
     }
 
     public void setDerailedVelocityMod(Vector derailed) {
-        minecart.derailedX = derailed.getX();
-        minecart.derailedY = derailed.getY();
-        minecart.derailedZ = derailed.getZ();
+        getHandle().setDerailedVelocityMod(derailed);
     }
 
     @Override
-    public String toString() {
-        return "CraftMinecart";
+    public EntityMinecartAbstract getHandle() {
+        return (EntityMinecartAbstract) entity;
     }
-
 }

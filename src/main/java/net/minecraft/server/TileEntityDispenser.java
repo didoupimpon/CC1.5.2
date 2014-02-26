@@ -2,14 +2,41 @@ package net.minecraft.server;
 
 import java.util.Random;
 
+// CraftBukkit start
+import java.util.List;
+
+import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+import org.bukkit.entity.HumanEntity;
+// CraftBukkit end
+
 public class TileEntityDispenser extends TileEntity implements IInventory {
 
     private ItemStack[] items = new ItemStack[9];
-    private Random b = new Random();
+    private Random c = new Random();
+    protected String a;
 
     // CraftBukkit start
+    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
+    private int maxStack = MAX_STACK;
+
     public ItemStack[] getContents() {
-        return items;
+        return this.items;
+    }
+
+    public void onOpen(CraftHumanEntity who) {
+        transaction.add(who);
+    }
+
+    public void onClose(CraftHumanEntity who) {
+        transaction.remove(who);
+    }
+
+    public List<HumanEntity> getViewers() {
+        return transaction;
+    }
+
+    public void setMaxStackSize(int size) {
+        maxStack = size;
     }
     // CraftBukkit end
 
@@ -23,7 +50,7 @@ public class TileEntityDispenser extends TileEntity implements IInventory {
         return this.items[i];
     }
 
-    public ItemStack a(int i, int j) {
+    public ItemStack splitStack(int i, int j) {
         if (this.items[i] != null) {
             ItemStack itemstack;
 
@@ -46,31 +73,29 @@ public class TileEntityDispenser extends TileEntity implements IInventory {
         }
     }
 
-    // CraftBukkit - change signature
-    public int findDispenseSlot() {
+    public ItemStack splitWithoutUpdate(int i) {
+        if (this.items[i] != null) {
+            ItemStack itemstack = this.items[i];
+
+            this.items[i] = null;
+            return itemstack;
+        } else {
+            return null;
+        }
+    }
+
+    public int j() {
         int i = -1;
         int j = 1;
 
         for (int k = 0; k < this.items.length; ++k) {
-            if (this.items[k] != null && this.items[k].count != 0 && this.b.nextInt(j) == 0) { // CraftBukkit
+            if (this.items[k] != null && this.c.nextInt(j++) == 0) {
+                if (this.items[k].count == 0) continue; // CraftBukkit
                 i = k;
-                ++j;
             }
         }
 
-        // CraftBukkit start
         return i;
-    }
-
-    public ItemStack b() {
-        int i = findDispenseSlot();
-        // CraftBukkit end
-
-        if (i >= 0) {
-            return this.a(i, 1);
-        } else {
-            return null;
-        }
     }
 
     public void setItem(int i, ItemStack itemstack) {
@@ -82,23 +107,46 @@ public class TileEntityDispenser extends TileEntity implements IInventory {
         this.update();
     }
 
+    public int addItem(ItemStack itemstack) {
+        for (int i = 0; i < this.items.length; ++i) {
+            if (this.items[i] == null || this.items[i].id == 0) {
+                this.setItem(i, itemstack);
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     public String getName() {
-        return "Trap";
+        return this.c() ? this.a : "container.dispenser";
+    }
+
+    public void a(String s) {
+        this.a = s;
+    }
+
+    public boolean c() {
+        return this.a != null;
     }
 
     public void a(NBTTagCompound nbttagcompound) {
         super.a(nbttagcompound);
-        NBTTagList nbttaglist = nbttagcompound.l("Items");
+        NBTTagList nbttaglist = nbttagcompound.getList("Items");
 
         this.items = new ItemStack[this.getSize()];
 
-        for (int i = 0; i < nbttaglist.c(); ++i) {
-            NBTTagCompound nbttagcompound1 = (NBTTagCompound) nbttaglist.a(i);
-            int j = nbttagcompound1.c("Slot") & 255;
+        for (int i = 0; i < nbttaglist.size(); ++i) {
+            NBTTagCompound nbttagcompound1 = (NBTTagCompound) nbttaglist.get(i);
+            int j = nbttagcompound1.getByte("Slot") & 255;
 
             if (j >= 0 && j < this.items.length) {
-                this.items[j] = new ItemStack(nbttagcompound1);
+                this.items[j] = ItemStack.createStack(nbttagcompound1);
             }
+        }
+
+        if (nbttagcompound.hasKey("CustomName")) {
+            this.a = nbttagcompound.getString("CustomName");
         }
     }
 
@@ -110,20 +158,31 @@ public class TileEntityDispenser extends TileEntity implements IInventory {
             if (this.items[i] != null) {
                 NBTTagCompound nbttagcompound1 = new NBTTagCompound();
 
-                nbttagcompound1.a("Slot", (byte) i);
-                this.items[i].a(nbttagcompound1);
-                nbttaglist.a((NBTBase) nbttagcompound1);
+                nbttagcompound1.setByte("Slot", (byte) i);
+                this.items[i].save(nbttagcompound1);
+                nbttaglist.add(nbttagcompound1);
             }
         }
 
-        nbttagcompound.a("Items", (NBTBase) nbttaglist);
+        nbttagcompound.set("Items", nbttaglist);
+        if (this.c()) {
+            nbttagcompound.setString("CustomName", this.a);
+        }
     }
 
     public int getMaxStackSize() {
-        return 64;
+        return maxStack; // CraftBukkit
     }
 
-    public boolean a_(EntityHuman entityhuman) {
-        return this.world.getTileEntity(this.e, this.f, this.g) != this ? false : entityhuman.d((double) this.e + 0.5D, (double) this.f + 0.5D, (double) this.g + 0.5D) <= 64.0D;
+    public boolean a(EntityHuman entityhuman) {
+        return this.world.getTileEntity(this.x, this.y, this.z) != this ? false : entityhuman.e((double) this.x + 0.5D, (double) this.y + 0.5D, (double) this.z + 0.5D) <= 64.0D;
+    }
+
+    public void startOpen() {}
+
+    public void g() {}
+
+    public boolean b(int i, ItemStack itemstack) {
+        return true;
     }
 }

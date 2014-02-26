@@ -1,36 +1,28 @@
 package net.minecraft.server;
 
-// CraftBukkit start
-import org.bukkit.block.BlockState;
-import org.bukkit.craftbukkit.block.CraftBlockState;
-import org.bukkit.craftbukkit.event.CraftEventFactory;
-import org.bukkit.event.block.BlockPlaceEvent;
-// CraftBukkit end
-
 public class ItemSeeds extends Item {
 
     private int id;
+    private int b;
 
-    public ItemSeeds(int i, int j) {
+    public ItemSeeds(int i, int j, int k) {
         super(i);
         this.id = j;
+        this.b = k;
+        this.a(CreativeModeTab.l);
     }
 
-    public boolean a(ItemStack itemstack, EntityHuman entityhuman, World world, int i, int j, int k, int l) {
+    public boolean interactWith(ItemStack itemstack, EntityHuman entityhuman, World world, int i, int j, int k, int l, float f, float f1, float f2) {
+        final int clickedX = i, clickedY = j, clickedZ = k; // CraftBukkit
         if (l != 1) {
             return false;
-        } else {
+        } else if (entityhuman.e(i, j, k) && entityhuman.e(i, j + 1, k)) {
             int i1 = world.getTypeId(i, j, k);
 
-            if (i1 == Block.SOIL.id && world.isEmpty(i, j + 1, k)) {
-                BlockState blockState = CraftBlockState.getBlockState(world, i, j + 1, k); // CraftBukkit
-
-                world.setTypeId(i, j + 1, k, this.id);
-
-                // CraftBukkit start - seeds
-                BlockPlaceEvent event = CraftEventFactory.callBlockPlaceEvent(world, entityhuman, blockState, i, j, k, this.id);
-                if (event.isCancelled() || !event.canBuild()) {
-                    event.getBlockPlaced().setTypeId(0);
+            if (i1 == this.b && world.isEmpty(i, j + 1, k)) {
+                // CraftBukkit start - Seeds
+                // world.setTypeIdUpdate(i, j + 1, k, this.id);
+                if (!ItemBlock.processBlockPlace(world, entityhuman, null, i, j + 1, k, this.id, 0, clickedX, clickedY, clickedZ)) {
                     return false;
                 }
                 // CraftBukkit end
@@ -40,6 +32,8 @@ public class ItemSeeds extends Item {
             } else {
                 return false;
             }
+        } else {
+            return false;
         }
     }
 }

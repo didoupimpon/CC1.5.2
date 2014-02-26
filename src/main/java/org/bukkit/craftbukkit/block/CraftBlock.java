@@ -1,14 +1,31 @@
 package org.bukkit.craftbukkit.block;
 
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.Biome;
-import org.bukkit.block.Block;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import net.minecraft.server.BiomeBase;
 import net.minecraft.server.BlockRedstoneWire;
-import org.bukkit.*;
+import net.minecraft.server.Direction;
+import net.minecraft.server.EnumSkyBlock;
+import net.minecraft.server.NBTTagCompound;
+import net.minecraft.server.TileEntitySkull;
+
+import org.bukkit.Chunk;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.Biome;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.PistonMoveReaction;
 import org.bukkit.craftbukkit.CraftChunk;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.metadata.MetadataValue;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.util.BlockVector;
 
 public class CraftBlock implements Block {
@@ -16,6 +33,8 @@ public class CraftBlock implements Block {
     private final int x;
     private final int y;
     private final int z;
+    private static final Biome BIOME_MAPPING[];
+    private static final BiomeBase BIOMEBASE_MAPPING[];
 
     public CraftBlock(CraftChunk chunk, int x, int y, int z) {
         this.x = x;
@@ -24,122 +43,84 @@ public class CraftBlock implements Block {
         this.chunk = chunk;
     }
 
-    /**
-     * Gets the world which contains this Block
-     *
-     * @return World containing this block
-     */
     public World getWorld() {
         return chunk.getWorld();
     }
 
-    /**
-     * Gets the Location of the block
-     *
-     * @return Location of the block
-     */
     public Location getLocation() {
-      return new Location(getWorld(), x, y, z);
+        return new Location(getWorld(), x, y, z);
+    }
+
+    public Location getLocation(Location loc) {
+        if (loc != null) {
+            loc.setWorld(getWorld());
+            loc.setX(x);
+            loc.setY(y);
+            loc.setZ(z);
+            loc.setYaw(0);
+            loc.setPitch(0);
+        }
+
+        return loc;
     }
 
     public BlockVector getVector() {
         return new BlockVector(x, y, z);
     }
 
-    /**
-     * Gets the x-coordinate of this block
-     *
-     * @return x-coordinate
-     */
     public int getX() {
         return x;
     }
 
-    /**
-     * Gets the y-coordinate of this block
-     *
-     * @return y-coordinate
-     */
     public int getY() {
         return y;
     }
 
-    /**
-     * Gets the z-coordinate of this block
-     *
-     * @return z-coordinate
-     */
     public int getZ() {
         return z;
     }
 
-    /**
-     * Gets the chunk which contains this block
-     *
-     * @return Containing Chunk
-     */
     public Chunk getChunk() {
         return chunk;
     }
 
-    /**
-     * Sets the metadata for this block
-     *
-     * @param data New block specific metadata
-     */
     public void setData(final byte data) {
-        chunk.getHandle().world.setData(x, y, z, data);
+        chunk.getHandle().world.setData(x, y, z, data, 3);
     }
 
     public void setData(final byte data, boolean applyPhysics) {
         if (applyPhysics) {
-            chunk.getHandle().world.setData(x, y, z, data);
+            chunk.getHandle().world.setData(x, y, z, data, 3);
         } else {
-            chunk.getHandle().world.setRawData(x, y, z, data);
+            chunk.getHandle().world.setData(x, y, z, data, 2);
         }
     }
 
-    /**
-     * Gets the metadata for this block
-     *
-     * @return block specific metadata
-     */
     public byte getData() {
-        return (byte) chunk.getHandle().getData(this.x & 0xF, this.y & 0x7F, this.z & 0xF);
+        return (byte) chunk.getHandle().getData(this.x & 0xF, this.y & 0xFF, this.z & 0xF);
     }
 
-    /**
-     * Sets the type of this block
-     *
-     * @param type Material to change this block to
-     */
     public void setType(final Material type) {
         setTypeId(type.getId());
     }
 
-    /**
-     * Sets the type-id of this block
-     *
-     * @param type Type-Id to change this block to
-     * @return whether the block was changed
-     */
     public boolean setTypeId(final int type) {
-        return chunk.getHandle().world.setTypeId(x, y, z, type);
+        return chunk.getHandle().world.setTypeIdAndData(x, y, z, type, getData(), 3);
     }
 
     public boolean setTypeId(final int type, final boolean applyPhysics) {
         if (applyPhysics) {
             return setTypeId(type);
         } else {
-            return chunk.getHandle().world.setRawTypeId(x, y, z, type);
+            return chunk.getHandle().world.setTypeIdAndData(x, y, z, type, getData(), 2);
         }
     }
 
     public boolean setTypeIdAndData(final int type, final byte data, final boolean applyPhysics) {
         if (applyPhysics) {
-            return chunk.getHandle().world.setTypeIdAndData(x, y, z, type, data);
+            return chunk.getHandle().world.setTypeIdAndData(x, y, z, type, data, 3);
         } else {
-            boolean success = chunk.getHandle().world.setRawTypeIdAndData(x, y, z, type, data);
+            boolean success = chunk.getHandle().world.setTypeIdAndData(x, y, z, type, data, 2);
             if (success) {
                 chunk.getHandle().world.notify(x, y, z);
             }
@@ -147,100 +128,47 @@ public class CraftBlock implements Block {
         }
     }
 
-    /**
-     * Gets the type of this block
-     *
-     * @return block type
-     */
     public Material getType() {
         return Material.getMaterial(getTypeId());
     }
 
-    /**
-     * Gets the type-id of this block
-     *
-     * @return block type-id
-     */
     public int getTypeId() {
-        return chunk.getHandle().getTypeId(this.x & 0xF, this.y & 0x7F, this.z & 0xF);
+        return chunk.getHandle().getTypeId(this.x & 0xF, this.y & 0xFF, this.z & 0xF);
     }
 
-    /**
-     * Gets the light level between 0-15
-     *
-     * @return light level
-     */
     public byte getLightLevel() {
         return (byte) chunk.getHandle().world.getLightLevel(this.x, this.y, this.z);
     }
 
-    /**
-     * Gets the block at the given face
-     *
-     * @param face Face of this block to return
-     * @return Block at the given face
-     */
+    public byte getLightFromSky() {
+        return (byte) chunk.getHandle().getBrightness(EnumSkyBlock.SKY, this.x & 0xF, this.y & 0xFF, this.z & 0xF);
+    }
+
+    public byte getLightFromBlocks() {
+        return (byte) chunk.getHandle().getBrightness(EnumSkyBlock.BLOCK, this.x & 0xF, this.y & 0xFF, this.z & 0xF);
+    }
+
+
     public Block getFace(final BlockFace face) {
-        return getFace(face, 1);
+        return getRelative(face, 1);
     }
 
-    /**
-     * Gets the block at the given distance of the given face<br />
-     * <br />
-     * For example, the following method places water at 100,102,100; two blocks
-     * above 100,100,100.
-     * <pre>
-     * Block block = world.getBlockAt(100,100,100);
-     * Block shower = block.getFace(BlockFace.UP, 2);
-     * shower.setType(Material.WATER);
-     * </pre>
-     *
-     * @param face Face of this block to return
-     * @param distance Distance to get the block at
-     * @return Block at the given face
-     */
     public Block getFace(final BlockFace face, final int distance) {
-        return getRelative(face.getModX() * distance, face.getModY() * distance, face.getModZ() * distance);
+        return getRelative(face, distance);
     }
 
-    /**
-     * Gets the block at the given offsets
-     *
-     * @param modX X-coordinate offset
-     * @param modY Y-coordinate offset
-     * @param modZ Z-coordinate offset
-     * @return Block at the given offsets
-     */
     public Block getRelative(final int modX, final int modY, final int modZ) {
         return getWorld().getBlockAt(getX() + modX, getY() + modY, getZ() + modZ);
     }
 
-    /**
-     * Gets the block at the given offsets
-     *
-     * @param face face
-     * @return Block at the given offsets
-     */
     public Block getRelative(BlockFace face) {
-        return getRelative(face.getModX(), face.getModY(), face.getModZ());
+        return getRelative(face, 1);
     }
 
-    /**
-     * Gets the face relation of this block compared to the given block<br />
-     * <br />
-     * For example:
-     * <pre>
-     * Block current = world.getBlockAt(100, 100, 100);
-     * Block target = world.getBlockAt(100, 101, 100);
-     *
-     * current.getFace(target) == BlockFace.UP;
-     * </pre>
-     * <br />
-     * If the given block is not connected to this block, null may be returned
-     *
-     * @param block Block to compare against this block
-     * @return BlockFace of this block which has the requested block, or null
-     */
+    public Block getRelative(BlockFace face, int distance) {
+        return getRelative(face.getModX() * distance, face.getModY() * distance, face.getModZ() * distance);
+    }
+
     public BlockFace getFace(final Block block) {
         BlockFace[] values = BlockFace.values();
 
@@ -258,11 +186,11 @@ public class CraftBlock implements Block {
 
     @Override
     public String toString() {
-        return "CraftBlock{" + "chunk=" + chunk + "x=" + x + "y=" + y + "z=" + z + '}';
+        return "CraftBlock{" + "chunk=" + chunk + ",x=" + x + ",y=" + y + ",z=" + z + ",type=" + getType() + ",data=" + getData() + '}';
     }
 
     /**
-     * Notch uses a 0-5 to mean DOWN, UP, EAST, WEST, NORTH, SOUTH
+     * Notch uses a 0-5 to mean DOWN, UP, NORTH, SOUTH, WEST, EAST
      * in that order all over. This method is convenience to convert for us.
      *
      * @return BlockFace the BlockFace represented by this number
@@ -274,34 +202,34 @@ public class CraftBlock implements Block {
         case 1:
             return BlockFace.UP;
         case 2:
-            return BlockFace.EAST;
-        case 3:
-            return BlockFace.WEST;
-        case 4:
             return BlockFace.NORTH;
-        case 5:
+        case 3:
             return BlockFace.SOUTH;
+        case 4:
+            return BlockFace.WEST;
+        case 5:
+            return BlockFace.EAST;
         default:
             return BlockFace.SELF;
         }
     }
 
     public static int blockFaceToNotch(BlockFace face) {
-        switch(face) {
-            case DOWN:
-                return 0;
-            case UP:
-                return 1;
-            case EAST:
-                return 2;
-            case WEST:
-                return 3;
-            case NORTH:
-                return 4;
-            case SOUTH:
-                return 5;
-            default:
-                return 7; // Good as anything here, but technically invalid
+        switch (face) {
+        case DOWN:
+            return 0;
+        case UP:
+            return 1;
+        case NORTH:
+            return 2;
+        case SOUTH:
+            return 3;
+        case WEST:
+            return 4;
+        case EAST:
+            return 5;
+        default:
+            return 7; // Good as anything here, but technically invalid
         }
     }
 
@@ -309,60 +237,74 @@ public class CraftBlock implements Block {
         Material material = getType();
 
         switch (material) {
-            case SIGN:
-            case SIGN_POST:
-            case WALL_SIGN:
-                return new CraftSign(this);
-            case CHEST:
-                return new CraftChest(this);
-            case BURNING_FURNACE:
-            case FURNACE:
-                return new CraftFurnace(this);
-            case DISPENSER:
-                return new CraftDispenser(this);
-            case MOB_SPAWNER:
-                return new CraftCreatureSpawner(this);
-            case NOTE_BLOCK:
-                return new CraftNoteBlock(this);
-            default:
-                return new CraftBlockState(this);
+        case SIGN:
+        case SIGN_POST:
+        case WALL_SIGN:
+            return new CraftSign(this);
+        case CHEST:
+        case TRAPPED_CHEST:
+            return new CraftChest(this);
+        case BURNING_FURNACE:
+        case FURNACE:
+            return new CraftFurnace(this);
+        case DISPENSER:
+            return new CraftDispenser(this);
+        case DROPPER:
+            return new CraftDropper(this);
+        case HOPPER:
+            return new CraftHopper(this);
+        case MOB_SPAWNER:
+            return new CraftCreatureSpawner(this);
+        case NOTE_BLOCK:
+            return new CraftNoteBlock(this);
+        case JUKEBOX:
+            return new CraftJukebox(this);
+        case BREWING_STAND:
+            return new CraftBrewingStand(this);
+        case SKULL:
+            return new CraftSkull(this);
+        case COMMAND:
+            return new CraftCommandBlock(this);
+        case BEACON:
+            return new CraftBeacon(this);
+        default:
+            return new CraftBlockState(this);
         }
     }
 
     public Biome getBiome() {
-        BiomeBase base = chunk.getHandle().world.getWorldChunkManager().getBiome(x, z);
+        return getWorld().getBiome(x, z);
+    }
 
-        if (base == BiomeBase.RAINFOREST) {
-            return Biome.RAINFOREST;
-        } else if (base == BiomeBase.SWAMPLAND) {
-            return Biome.SWAMPLAND;
-        } else if (base == BiomeBase.SEASONAL_FOREST) {
-            return Biome.SEASONAL_FOREST;
-        } else if (base == BiomeBase.FOREST) {
-            return Biome.FOREST;
-        } else if (base == BiomeBase.SAVANNA) {
-            return Biome.SAVANNA;
-        } else if (base == BiomeBase.SHRUBLAND) {
-            return Biome.SHRUBLAND;
-        } else if (base == BiomeBase.TAIGA) {
-            return Biome.TAIGA;
-        } else if (base == BiomeBase.DESERT) {
-            return Biome.DESERT;
-        } else if (base == BiomeBase.PLAINS) {
-            return Biome.PLAINS;
-        } else if (base == BiomeBase.ICE_DESERT) {
-            return Biome.ICE_DESERT;
-        } else if (base == BiomeBase.TUNDRA) {
-            return Biome.TUNDRA;
-        } else if (base == BiomeBase.HELL) {
-            return Biome.HELL;
+    public void setBiome(Biome bio) {
+        getWorld().setBiome(x, z, bio);
+    }
+
+    public static Biome biomeBaseToBiome(BiomeBase base) {
+        if (base == null) {
+            return null;
         }
 
-        return null;
+        return BIOME_MAPPING[base.id];
+    }
+
+    public static BiomeBase biomeToBiomeBase(Biome bio) {
+        if (bio == null) {
+            return null;
+        }
+        return BIOMEBASE_MAPPING[bio.ordinal()];
+    }
+
+    public double getTemperature() {
+        return getWorld().getTemperature(x, z);
+    }
+
+    public double getHumidity() {
+        return getWorld().getHumidity(x, z);
     }
 
     public boolean isBlockPowered() {
-        return chunk.getHandle().world.isBlockPowered(x, y, z);
+        return chunk.getHandle().world.getBlockPower(x, y, z) > 0;
     }
 
     public boolean isBlockIndirectlyPowered() {
@@ -371,7 +313,16 @@ public class CraftBlock implements Block {
 
     @Override
     public boolean equals(Object o) {
-        return this == o;
+        if (o == this) return true;
+        if (!(o instanceof CraftBlock)) return false;
+        CraftBlock other = (CraftBlock) o;
+
+        return this.x == other.x && this.y == other.y && this.z == other.z && this.getWorld().equals(other.getWorld());
+    }
+
+    @Override
+    public int hashCode() {
+        return this.y << 24 ^ this.x ^ this.z ^ this.getWorld().hashCode();
     }
 
     public boolean isBlockFacePowered(BlockFace face) {
@@ -379,23 +330,165 @@ public class CraftBlock implements Block {
     }
 
     public boolean isBlockFaceIndirectlyPowered(BlockFace face) {
-        return chunk.getHandle().world.isBlockFaceIndirectlyPowered(x, y, z, blockFaceToNotch(face));
+        int power = chunk.getHandle().world.getBlockFacePower(x, y, z, blockFaceToNotch(face));
+
+        Block relative = getRelative(face);
+        if (relative.getType() == Material.REDSTONE_WIRE) {
+            return Math.max(power, relative.getData()) > 0;
+        }
+
+        return power > 0;
     }
 
     public int getBlockPower(BlockFace face) {
         int power = 0;
-        BlockRedstoneWire wire = (BlockRedstoneWire) net.minecraft.server.Block.REDSTONE_WIRE;
+        BlockRedstoneWire wire = net.minecraft.server.Block.REDSTONE_WIRE;
         net.minecraft.server.World world = chunk.getHandle().world;
         if ((face == BlockFace.DOWN || face == BlockFace.SELF) && world.isBlockFacePowered(x, y - 1, z, 0)) power = wire.getPower(world, x, y - 1, z, power);
         if ((face == BlockFace.UP || face == BlockFace.SELF) && world.isBlockFacePowered(x, y + 1, z, 1)) power = wire.getPower(world, x, y + 1, z, power);
-        if ((face == BlockFace.EAST || face == BlockFace.SELF) && world.isBlockFacePowered(x, y, z - 1, 2)) power = wire.getPower(world, x, y, z - 1, power);
-        if ((face == BlockFace.WEST || face == BlockFace.SELF) && world.isBlockFacePowered(x, y, z + 1, 3)) power = wire.getPower(world, x, y, z + 1, power);
-        if ((face == BlockFace.NORTH || face == BlockFace.SELF) && world.isBlockFacePowered(x - 1, y, z, 4)) power = wire.getPower(world, x - 1, y, z, power);
-        if ((face == BlockFace.SOUTH || face == BlockFace.SELF) && world.isBlockFacePowered(x + 1, y, z, 5)) power = wire.getPower(world, x + 1, y, z, power);
+        if ((face == BlockFace.EAST || face == BlockFace.SELF) && world.isBlockFacePowered(x + 1, y, z, 2)) power = wire.getPower(world, x + 1, y, z, power);
+        if ((face == BlockFace.WEST || face == BlockFace.SELF) && world.isBlockFacePowered(x - 1, y, z, 3)) power = wire.getPower(world, x - 1, y, z, power);
+        if ((face == BlockFace.NORTH || face == BlockFace.SELF) && world.isBlockFacePowered(x, y, z - 1, 4)) power = wire.getPower(world, x, y, z - 1, power);
+        if ((face == BlockFace.SOUTH || face == BlockFace.SELF) && world.isBlockFacePowered(x, y, z + 1, 5)) power = wire.getPower(world, x, y, z - 1, power);
         return power > 0 ? power : (face == BlockFace.SELF ? isBlockIndirectlyPowered() : isBlockFaceIndirectlyPowered(face)) ? 15 : 0;
     }
 
     public int getBlockPower() {
         return getBlockPower(BlockFace.SELF);
+    }
+
+    public boolean isEmpty() {
+        return getType() == Material.AIR;
+    }
+
+    public boolean isLiquid() {
+        return (getType() == Material.WATER) || (getType() == Material.STATIONARY_WATER) || (getType() == Material.LAVA) || (getType() == Material.STATIONARY_LAVA);
+    }
+
+    public PistonMoveReaction getPistonMoveReaction() {
+        return PistonMoveReaction.getById(net.minecraft.server.Block.byId[this.getTypeId()].material.getPushReaction());
+    }
+
+    private boolean itemCausesDrops(ItemStack item) {
+        net.minecraft.server.Block block = net.minecraft.server.Block.byId[this.getTypeId()];
+        net.minecraft.server.Item itemType = item != null ? net.minecraft.server.Item.byId[item.getTypeId()] : null;
+        return block != null && (block.material.isAlwaysDestroyable() || (itemType != null && itemType.canDestroySpecialBlock(block)));
+    }
+
+    public boolean breakNaturally() {
+        // Order matters here, need to drop before setting to air so skulls can get their data
+        net.minecraft.server.Block block = net.minecraft.server.Block.byId[this.getTypeId()];
+        byte data = getData();
+        boolean result = false;
+
+        if (block != null) {
+            block.dropNaturally(chunk.getHandle().world, x, y, z, data, 1.0F, 0);
+            result = true;
+        }
+
+        setTypeId(Material.AIR.getId());
+        return result;
+    }
+
+    public boolean breakNaturally(ItemStack item) {
+        if (itemCausesDrops(item)) {
+            return breakNaturally();
+        } else {
+            return setTypeId(Material.AIR.getId());
+        }
+    }
+
+    public Collection<ItemStack> getDrops() {
+        List<ItemStack> drops = new ArrayList<ItemStack>();
+
+        net.minecraft.server.Block block = net.minecraft.server.Block.byId[this.getTypeId()];
+        if (block != null) {
+            byte data = getData();
+            // based on nms.Block.dropNaturally
+            int count = block.getDropCount(0, chunk.getHandle().world.random);
+            for (int i = 0; i < count; ++i) {
+                int item = block.getDropType(data, chunk.getHandle().world.random, 0);
+                if (item > 0) {
+                    // Skulls are special, their data is based on the tile entity
+                    if (net.minecraft.server.Block.SKULL.id == this.getTypeId()) {
+                        net.minecraft.server.ItemStack nmsStack = new net.minecraft.server.ItemStack(item, 1, block.getDropData(chunk.getHandle().world, x, y, z));
+                        TileEntitySkull tileentityskull = (TileEntitySkull) chunk.getHandle().world.getTileEntity(x, y, z);
+
+                        if (tileentityskull.getSkullType() == 3 && tileentityskull.getExtraType() != null && tileentityskull.getExtraType().length() > 0) {
+                            nmsStack.setTag(new NBTTagCompound());
+                            nmsStack.getTag().setString("SkullOwner", tileentityskull.getExtraType());
+                        }
+
+                        drops.add(CraftItemStack.asBukkitCopy(nmsStack));
+                    } else {
+                        drops.add(new ItemStack(item, 1, (short) block.getDropData(data)));
+                    }
+                }
+            }
+        }
+        return drops;
+    }
+
+    public Collection<ItemStack> getDrops(ItemStack item) {
+        if (itemCausesDrops(item)) {
+            return getDrops();
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    /* Build biome index based lookup table for BiomeBase to Biome mapping */
+    static {
+        BIOME_MAPPING = new Biome[BiomeBase.biomes.length];
+        BIOMEBASE_MAPPING = new BiomeBase[Biome.values().length];
+        BIOME_MAPPING[BiomeBase.SWAMPLAND.id] = Biome.SWAMPLAND;
+        BIOME_MAPPING[BiomeBase.FOREST.id] = Biome.FOREST;
+        BIOME_MAPPING[BiomeBase.TAIGA.id] = Biome.TAIGA;
+        BIOME_MAPPING[BiomeBase.DESERT.id] = Biome.DESERT;
+        BIOME_MAPPING[BiomeBase.PLAINS.id] = Biome.PLAINS;
+        BIOME_MAPPING[BiomeBase.HELL.id] = Biome.HELL;
+        BIOME_MAPPING[BiomeBase.SKY.id] = Biome.SKY;
+        BIOME_MAPPING[BiomeBase.RIVER.id] = Biome.RIVER;
+        BIOME_MAPPING[BiomeBase.EXTREME_HILLS.id] = Biome.EXTREME_HILLS;
+        BIOME_MAPPING[BiomeBase.OCEAN.id] = Biome.OCEAN;
+        BIOME_MAPPING[BiomeBase.FROZEN_OCEAN.id] = Biome.FROZEN_OCEAN;
+        BIOME_MAPPING[BiomeBase.FROZEN_RIVER.id] = Biome.FROZEN_RIVER;
+        BIOME_MAPPING[BiomeBase.ICE_PLAINS.id] = Biome.ICE_PLAINS;
+        BIOME_MAPPING[BiomeBase.ICE_MOUNTAINS.id] = Biome.ICE_MOUNTAINS;
+        BIOME_MAPPING[BiomeBase.MUSHROOM_ISLAND.id] = Biome.MUSHROOM_ISLAND;
+        BIOME_MAPPING[BiomeBase.MUSHROOM_SHORE.id] = Biome.MUSHROOM_SHORE;
+        BIOME_MAPPING[BiomeBase.BEACH.id] = Biome.BEACH;
+        BIOME_MAPPING[BiomeBase.DESERT_HILLS.id] = Biome.DESERT_HILLS;
+        BIOME_MAPPING[BiomeBase.FOREST_HILLS.id] = Biome.FOREST_HILLS;
+        BIOME_MAPPING[BiomeBase.TAIGA_HILLS.id] = Biome.TAIGA_HILLS;
+        BIOME_MAPPING[BiomeBase.SMALL_MOUNTAINS.id] = Biome.SMALL_MOUNTAINS;
+        BIOME_MAPPING[BiomeBase.JUNGLE.id] = Biome.JUNGLE;
+        BIOME_MAPPING[BiomeBase.JUNGLE_HILLS.id] = Biome.JUNGLE_HILLS;
+        /* Sanity check - we should have a record for each record in the BiomeBase.a table */
+        /* Helps avoid missed biomes when we upgrade bukkit to new code with new biomes */
+        for (int i = 0; i < BIOME_MAPPING.length; i++) {
+            if ((BiomeBase.biomes[i] != null) && (BIOME_MAPPING[i] == null)) {
+                throw new IllegalArgumentException("Missing Biome mapping for BiomeBase[" + i + "]");
+            }
+            if (BIOME_MAPPING[i] != null) {  /* Build reverse mapping for setBiome */
+                BIOMEBASE_MAPPING[BIOME_MAPPING[i].ordinal()] = BiomeBase.biomes[i];
+            }
+        }
+    }
+
+    public void setMetadata(String metadataKey, MetadataValue newMetadataValue) {
+        chunk.getCraftWorld().getBlockMetadata().setMetadata(this, metadataKey, newMetadataValue);
+    }
+
+    public List<MetadataValue> getMetadata(String metadataKey) {
+        return chunk.getCraftWorld().getBlockMetadata().getMetadata(this, metadataKey);
+    }
+
+    public boolean hasMetadata(String metadataKey) {
+        return chunk.getCraftWorld().getBlockMetadata().hasMetadata(this, metadataKey);
+    }
+
+    public void removeMetadata(String metadataKey, Plugin owningPlugin) {
+        chunk.getCraftWorld().getBlockMetadata().removeMetadata(this, metadataKey, owningPlugin);
     }
 }

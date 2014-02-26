@@ -13,6 +13,7 @@ import net.minecraft.server.MinecraftServer;
 
 public class Main {
     public static boolean useJline = true;
+    public static boolean useConsole = true;
 
     public static void main(String[] args) {
         // Todo: Installation script
@@ -37,10 +38,15 @@ public class Main {
                         .ofType(String.class)
                         .describedAs("Hostname or IP");
 
-                acceptsAll(asList("w", "world", "level-name"), "World directory")
+                acceptsAll(asList("W", "world-dir", "universe", "world-container"), "World container")
+                        .withRequiredArg()
+                        .ofType(File.class)
+                        .describedAs("Directory containing worlds");
+
+                acceptsAll(asList("w", "world", "level-name"), "World name")
                         .withRequiredArg()
                         .ofType(String.class)
-                        .describedAs("World dir");
+                        .describedAs("World name");
 
                 acceptsAll(asList("p", "port", "server-port"), "Port to listen on")
                         .withRequiredArg()
@@ -62,6 +68,32 @@ public class Main {
                         .ofType(SimpleDateFormat.class)
                         .describedAs("Log date format");
 
+                acceptsAll(asList("log-pattern"), "Specfies the log filename pattern")
+                        .withRequiredArg()
+                        .ofType(String.class)
+                        .defaultsTo("server.log")
+                        .describedAs("Log filename");
+
+                acceptsAll(asList("log-limit"), "Limits the maximum size of the log file (0 = unlimited)")
+                        .withRequiredArg()
+                        .ofType(Integer.class)
+                        .defaultsTo(0)
+                        .describedAs("Max log size");
+
+                acceptsAll(asList("log-count"), "Specified how many log files to cycle through")
+                        .withRequiredArg()
+                        .ofType(Integer.class)
+                        .defaultsTo(1)
+                        .describedAs("Log count");
+
+                acceptsAll(asList("log-append"), "Whether to append to the log file")
+                        .withRequiredArg()
+                        .ofType(Boolean.class)
+                        .defaultsTo(true)
+                        .describedAs("Log append");
+
+                acceptsAll(asList("log-strip-color"), "Strips color codes from log file");
+
                 acceptsAll(asList("b", "bukkit-settings"), "File for bukkit settings")
                         .withRequiredArg()
                         .ofType(File.class)
@@ -69,6 +101,12 @@ public class Main {
                         .describedAs("Yml file");
 
                 acceptsAll(asList("nojline"), "Disables jline and emulates the vanilla console");
+
+                acceptsAll(asList("noconsole"), "Disables the console");
+
+                acceptsAll(asList("v", "version"), "Show the CraftBukkit Version");
+
+                acceptsAll(asList("demo"), "Demo mode");
             }
         };
 
@@ -86,14 +124,29 @@ public class Main {
             } catch (IOException ex) {
                 Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
             }
+        } else if (options.has("v")) {
+            System.out.println(CraftServer.class.getPackage().getImplementationVersion());
         } else {
             try {
-                useJline = !"jline.UnsupportedTerminal".equals(System.getProperty("jline.terminal"));
-                
+                // This trick bypasses Maven Shade's clever rewriting of our getProperty call when using String literals
+                String jline_UnsupportedTerminal = new String(new char[] {'j','l','i','n','e','.','U','n','s','u','p','p','o','r','t','e','d','T','e','r','m','i','n','a','l'});
+                String jline_terminal = new String(new char[] {'j','l','i','n','e','.','t','e','r','m','i','n','a','l'});
+
+                useJline = !(jline_UnsupportedTerminal).equals(System.getProperty(jline_terminal));
+
                 if (options.has("nojline")) {
-                    System.setProperty("jline.terminal", "jline.UnsupportedTerminal");
                     System.setProperty("user.language", "en");
                     useJline = false;
+                }
+
+                if (!useJline) {
+                    // This ensures the terminal literal will always match the jline implementation
+                    System.setProperty(jline.TerminalFactory.JLINE_TERMINAL, jline.UnsupportedTerminal.class.getName());
+                }
+
+
+                if (options.has("noconsole")) {
+                    useConsole = false;
                 }
 
                 MinecraftServer.main(options);

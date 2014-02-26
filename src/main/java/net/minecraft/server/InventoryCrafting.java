@@ -1,5 +1,13 @@
 package net.minecraft.server;
 
+// CraftBukkit start
+import java.util.List;
+
+import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+import org.bukkit.entity.HumanEntity;
+import org.bukkit.event.inventory.InventoryType;
+// CraftBukkit end
+
 public class InventoryCrafting implements IInventory {
 
     private ItemStack[] items;
@@ -7,8 +15,44 @@ public class InventoryCrafting implements IInventory {
     private Container c;
 
     // CraftBukkit start
+    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
+    public IRecipe currentRecipe;
+    public IInventory resultInventory;
+    private EntityHuman owner;
+    private int maxStack = MAX_STACK;
+
     public ItemStack[] getContents() {
-        return items;
+        return this.items;
+    }
+
+    public void onOpen(CraftHumanEntity who) {
+        transaction.add(who);
+    }
+
+    public InventoryType getInvType() {
+        return items.length == 4 ? InventoryType.CRAFTING : InventoryType.WORKBENCH;
+    }
+
+    public void onClose(CraftHumanEntity who) {
+        transaction.remove(who);
+    }
+
+    public List<HumanEntity> getViewers() {
+        return transaction;
+    }
+
+    public org.bukkit.inventory.InventoryHolder getOwner() {
+        return owner.getBukkitEntity();
+    }
+
+    public void setMaxStackSize(int size) {
+        maxStack = size;
+        resultInventory.setMaxStackSize(size);
+    }
+
+    public InventoryCrafting(Container container, int i, int j, EntityHuman player) {
+        this(container, i, j);
+        this.owner = player;
     }
     // CraftBukkit end
 
@@ -39,10 +83,25 @@ public class InventoryCrafting implements IInventory {
     }
 
     public String getName() {
-        return "Crafting";
+        return "container.crafting";
     }
 
-    public ItemStack a(int i, int j) {
+    public boolean c() {
+        return false;
+    }
+
+    public ItemStack splitWithoutUpdate(int i) {
+        if (this.items[i] != null) {
+            ItemStack itemstack = this.items[i];
+
+            this.items[i] = null;
+            return itemstack;
+        } else {
+            return null;
+        }
+    }
+
+    public ItemStack splitStack(int i, int j) {
         if (this.items[i] != null) {
             ItemStack itemstack;
 
@@ -71,12 +130,20 @@ public class InventoryCrafting implements IInventory {
     }
 
     public int getMaxStackSize() {
-        return 64;
+        return maxStack; // CraftBukkit
     }
 
     public void update() {}
 
-    public boolean a_(EntityHuman entityhuman) {
+    public boolean a(EntityHuman entityhuman) {
+        return true;
+    }
+
+    public void startOpen() {}
+
+    public void g() {}
+
+    public boolean b(int i, ItemStack itemstack) {
         return true;
     }
 }

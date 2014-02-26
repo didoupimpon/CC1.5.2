@@ -3,6 +3,7 @@ package net.minecraft.server;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -11,21 +12,33 @@ import joptsimple.OptionSet; // CraftBukkit
 
 public class PropertyManager {
 
-    public static Logger a = Logger.getLogger("Minecraft");
-    private Properties properties = new Properties();
-    private File c;
+    public final Properties properties = new Properties(); // CraftBukkit - private -> public
+    private final IConsoleLogManager loggingAgent;
+    private final File c;
 
-    public PropertyManager(File file1) {
+    public PropertyManager(File file1, IConsoleLogManager iconsolelogmanager) {
         this.c = file1;
+        this.loggingAgent = iconsolelogmanager;
         if (file1.exists()) {
+            FileInputStream fileinputstream = null;
+
             try {
-                this.properties.load(new FileInputStream(file1));
+                fileinputstream = new FileInputStream(file1);
+                this.properties.load(fileinputstream);
             } catch (Exception exception) {
-                a.log(Level.WARNING, "Failed to load " + file1, exception);
+                iconsolelogmanager.warning("Failed to load " + file1, exception);
                 this.a();
+            } finally {
+                if (fileinputstream != null) {
+                    try {
+                        fileinputstream.close();
+                    } catch (IOException ioexception) {
+                        ;
+                    }
+                }
             }
         } else {
-            a.log(Level.WARNING, file1 + " does not exist");
+            iconsolelogmanager.warning(file1 + " does not exist");
             this.a();
         }
     }
@@ -33,15 +46,15 @@ public class PropertyManager {
     // CraftBukkit start
     private OptionSet options = null;
 
-    public PropertyManager(final OptionSet options) {
-        this((File) options.valueOf("config"));
+    public PropertyManager(final OptionSet options, IConsoleLogManager iconsolelogmanager) {
+        this((File) options.valueOf("config"), iconsolelogmanager);
 
         this.options = options;
     }
 
     private <T> T getOverride(String name, T value) {
-        if ((options != null) && (options.has(name))) {
-            return (T) options.valueOf(name);
+        if ((this.options != null) && (this.options.has(name))) {
+            return (T) this.options.valueOf(name);
         }
 
         return value;
@@ -49,52 +62,67 @@ public class PropertyManager {
     // CraftBukkit end
 
     public void a() {
-        a.log(Level.INFO, "Generating new properties file");
-        this.b();
+        this.loggingAgent.info("Generating new properties file");
+        this.savePropertiesFile();
     }
 
-    public void b() {
+    public void savePropertiesFile() {
+        FileOutputStream fileoutputstream = null;
+
         try {
-            this.properties.store(new FileOutputStream(this.c), "Minecraft server properties");
+            // CraftBukkit start - Don't attempt writing to file if it's read only
+            if (this.c.exists() && !this.c.canWrite()) {
+                return;
+            }
+            // CraftBukkit end
+            fileoutputstream = new FileOutputStream(this.c);
+            this.properties.store(fileoutputstream, "Minecraft server properties");
         } catch (Exception exception) {
-            a.log(Level.WARNING, "Failed to save " + this.c, exception);
+            this.loggingAgent.warning("Failed to save " + this.c, exception);
             this.a();
+        } finally {
+            if (fileoutputstream != null) {
+                try {
+                    fileoutputstream.close();
+                } catch (IOException ioexception) {
+                    ;
+                }
+            }
         }
+    }
+
+    public File c() {
+        return this.c;
     }
 
     public String getString(String s, String s1) {
         if (!this.properties.containsKey(s)) {
-            s1 = getOverride(s, s1); // CraftBukkit
             this.properties.setProperty(s, s1);
-            this.b();
+            this.savePropertiesFile();
         }
 
-        return getOverride(s, this.properties.getProperty(s, s1)); // CraftBukkit
+        return this.getOverride(s, this.properties.getProperty(s, s1)); // CraftBukkit
     }
 
     public int getInt(String s, int i) {
         try {
-            return getOverride(s, Integer.parseInt(this.getString(s, "" + i))); // CraftBukkit
+            return this.getOverride(s, Integer.parseInt(this.getString(s, "" + i))); // CraftBukkit
         } catch (Exception exception) {
-            i = getOverride(s, i); // CraftBukkit
             this.properties.setProperty(s, "" + i);
-            return i;
+            return this.getOverride(s, i); // CraftBukkit
         }
     }
 
     public boolean getBoolean(String s, boolean flag) {
         try {
-            return getOverride(s, Boolean.parseBoolean(this.getString(s, "" + flag))); // CraftBukkit
+            return this.getOverride(s, Boolean.parseBoolean(this.getString(s, "" + flag))); // CraftBukkit
         } catch (Exception exception) {
-            flag = getOverride(s, flag); // CraftBukkit
             this.properties.setProperty(s, "" + flag);
-            return flag;
+            return this.getOverride(s, flag); // CraftBukkit
         }
     }
 
-    public void b(String s, boolean flag) {
-        flag = getOverride(s, flag); // CraftBukkit
-        this.properties.setProperty(s, "" + flag);
-        this.b();
+    public void a(String s, Object object) {
+        this.properties.setProperty(s, "" + object);
     }
 }

@@ -21,7 +21,7 @@ public class ShortConsoleLogFormatter extends Formatter {
                 Object object = options.valueOf("date-format");
 
                 if ((object != null) && (object instanceof SimpleDateFormat)) {
-                    date = (SimpleDateFormat)object;
+                    date = (SimpleDateFormat) object;
                 }
             } catch (OptionException ex) {
                 System.err.println("Given date format is not valid. Falling back to default.");
@@ -46,7 +46,7 @@ public class ShortConsoleLogFormatter extends Formatter {
         builder.append(" [");
         builder.append(record.getLevel().getLocalizedName().toUpperCase());
         builder.append("] ");
-        builder.append(record.getMessage());
+        builder.append(formatMessage(record));
         builder.append('\n');
 
         if (ex != null) {
