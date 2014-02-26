@@ -4,88 +4,129 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 public class EntityTracker {
 
-    private Set a = new HashSet();
-    private EntityList b = new EntityList();
-    private MinecraftServer c;
+    private final WorldServer world;
+    private Set b = new HashSet();
+    public IntHashMap trackedEntities = new IntHashMap(); // CraftBukkit - private -> public
     private int d;
 
-    public EntityTracker(MinecraftServer minecraftserver) {
-        this.c = minecraftserver;
-        this.d = minecraftserver.serverConfigurationManager.a();
+    public EntityTracker(WorldServer worldserver) {
+        this.world = worldserver;
+        this.d = worldserver.getMinecraftServer().getPlayerList().a();
     }
 
-    // CraftBukkit - synchronized
-    public synchronized void a(Entity entity) {
+    public void track(Entity entity) {
         if (entity instanceof EntityPlayer) {
-            this.a(entity, 512, 2);
+            this.addEntity(entity, 512, 2);
             EntityPlayer entityplayer = (EntityPlayer) entity;
-            Iterator iterator = this.a.iterator();
+            Iterator iterator = this.b.iterator();
 
             while (iterator.hasNext()) {
                 EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
 
                 if (entitytrackerentry.tracker != entityplayer) {
-                    entitytrackerentry.b(entityplayer);
+                    entitytrackerentry.updatePlayer(entityplayer);
                 }
             }
-        } else if (entity instanceof EntityFish) {
-            this.a(entity, 64, 5, true);
+        } else if (entity instanceof EntityFishingHook) {
+            this.addEntity(entity, 64, 5, true);
         } else if (entity instanceof EntityArrow) {
-            this.a(entity, 64, 5, true);
+            this.addEntity(entity, 64, 20, false);
+        } else if (entity instanceof EntitySmallFireball) {
+            this.addEntity(entity, 64, 10, false);
+        } else if (entity instanceof EntityFireball) {
+            this.addEntity(entity, 64, 10, false);
         } else if (entity instanceof EntitySnowball) {
-            this.a(entity, 64, 5, true);
+            this.addEntity(entity, 64, 10, true);
+        } else if (entity instanceof EntityEnderPearl) {
+            this.addEntity(entity, 64, 10, true);
+        } else if (entity instanceof EntityEnderSignal) {
+            this.addEntity(entity, 64, 4, true);
         } else if (entity instanceof EntityEgg) {
-            this.a(entity, 64, 5, true);
+            this.addEntity(entity, 64, 10, true);
+        } else if (entity instanceof EntityPotion) {
+            this.addEntity(entity, 64, 10, true);
+        } else if (entity instanceof EntityThrownExpBottle) {
+            this.addEntity(entity, 64, 10, true);
+        } else if (entity instanceof EntityFireworks) {
+            this.addEntity(entity, 64, 10, true);
         } else if (entity instanceof EntityItem) {
-            this.a(entity, 64, 20, true);
-        } else if (entity instanceof EntityMinecart) {
-            this.a(entity, 160, 5, true);
+            this.addEntity(entity, 64, 20, true);
+        } else if (entity instanceof EntityMinecartAbstract) {
+            this.addEntity(entity, 80, 2, true); // CraftBukkit - Send updates at same rate as players
         } else if (entity instanceof EntityBoat) {
-            this.a(entity, 160, 5, true);
+            this.addEntity(entity, 80, 2, true); // CraftBukkit - Send updates at same rate as players
         } else if (entity instanceof EntitySquid) {
-            this.a(entity, 160, 3, true);
+            this.addEntity(entity, 64, 3, true);
+        } else if (entity instanceof EntityWither) {
+            this.addEntity(entity, 80, 3, false);
+        } else if (entity instanceof EntityBat) {
+            this.addEntity(entity, 80, 3, false);
         } else if (entity instanceof IAnimal) {
-            this.a(entity, 160, 3);
+            this.addEntity(entity, 80, 3, true);
+        } else if (entity instanceof EntityEnderDragon) {
+            this.addEntity(entity, 160, 3, true);
         } else if (entity instanceof EntityTNTPrimed) {
-            this.a(entity, 160, 10, true);
-        } else if (entity instanceof EntityFallingSand) {
-            this.a(entity, 160, 20, true);
+            this.addEntity(entity, 160, 10, true);
+        } else if (entity instanceof EntityFallingBlock) {
+            this.addEntity(entity, 160, 20, true);
         } else if (entity instanceof EntityPainting) {
-            this.a(entity, 160, Integer.MAX_VALUE, false);
+            this.addEntity(entity, 160, Integer.MAX_VALUE, false);
+        } else if (entity instanceof EntityExperienceOrb) {
+            this.addEntity(entity, 160, 20, true);
+        } else if (entity instanceof EntityEnderCrystal) {
+            this.addEntity(entity, 256, Integer.MAX_VALUE, false);
+        } else if (entity instanceof EntityItemFrame) {
+            this.addEntity(entity, 160, Integer.MAX_VALUE, false);
         }
     }
 
-    public void a(Entity entity, int i, int j) {
-        this.a(entity, i, j, false);
+    public void addEntity(Entity entity, int i, int j) {
+        this.addEntity(entity, i, j, false);
     }
 
-    // CraftBukkit - synchronized
-    public synchronized void a(Entity entity, int i, int j, boolean flag) {
+    public void addEntity(Entity entity, int i, int j, boolean flag) {
         if (i > this.d) {
             i = this.d;
         }
 
-        if (this.b.b(entity.id)) {
-            // CraftBukkit - removed exception throw as tracking an already tracked entity theoretically shouldn't cause any issues.
-            // throw new IllegalStateException("Entity is already tracked!");
-        } else {
+        try {
+            if (this.trackedEntities.b(entity.id)) {
+                throw new IllegalStateException("Entity is already tracked!");
+            }
+
             EntityTrackerEntry entitytrackerentry = new EntityTrackerEntry(entity, i, j, flag);
 
-            this.a.add(entitytrackerentry);
-            this.b.a(entity.id, entitytrackerentry);
-            // CraftBukkit
-            entitytrackerentry.scanPlayers(entity.world.players);
+            this.b.add(entitytrackerentry);
+            this.trackedEntities.a(entity.id, entitytrackerentry);
+            entitytrackerentry.scanPlayers(this.world.players);
+        } catch (Throwable throwable) {
+            CrashReport crashreport = CrashReport.a(throwable, "Adding entity to track");
+            CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Entity To Track");
+
+            crashreportsystemdetails.a("Tracking range", (i + " blocks"));
+            crashreportsystemdetails.a("Update interval", (Callable) (new CrashReportEntityTrackerUpdateInterval(this, j)));
+            entity.a(crashreportsystemdetails);
+            CrashReportSystemDetails crashreportsystemdetails1 = crashreport.a("Entity That Is Already Tracked");
+
+            ((EntityTrackerEntry) this.trackedEntities.get(entity.id)).tracker.a(crashreportsystemdetails1);
+
+            try {
+                throw new ReportedException(crashreport);
+            } catch (ReportedException reportedexception) {
+                System.err.println("\"Silently\" catching entity tracking error.");
+                reportedexception.printStackTrace();
+            }
         }
     }
 
-    // CraftBukkit - synchronized
-    public synchronized void untrackEntity(Entity entity) {
+    public void untrackEntity(Entity entity) {
         if (entity instanceof EntityPlayer) {
             EntityPlayer entityplayer = (EntityPlayer) entity;
-            Iterator iterator = this.a.iterator();
+            Iterator iterator = this.b.iterator();
 
             while (iterator.hasNext()) {
                 EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
@@ -94,69 +135,76 @@ public class EntityTracker {
             }
         }
 
-        EntityTrackerEntry entitytrackerentry1 = (EntityTrackerEntry) this.b.d(entity.id);
+        EntityTrackerEntry entitytrackerentry1 = (EntityTrackerEntry) this.trackedEntities.d(entity.id);
 
         if (entitytrackerentry1 != null) {
-            this.a.remove(entitytrackerentry1);
+            this.b.remove(entitytrackerentry1);
             entitytrackerentry1.a();
         }
     }
 
-    // CraftBukkit - synchronized
-    public synchronized void a() {
+    public void updatePlayers() {
         ArrayList arraylist = new ArrayList();
-        Iterator iterator = this.a.iterator();
+        Iterator iterator = this.b.iterator();
 
         while (iterator.hasNext()) {
             EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
 
-            // CraftBukkit
-            entitytrackerentry.track(entitytrackerentry.tracker.world.players);
-            if (entitytrackerentry.m && entitytrackerentry.tracker instanceof EntityPlayer) {
+            entitytrackerentry.track(this.world.players);
+            if (entitytrackerentry.n && entitytrackerentry.tracker instanceof EntityPlayer) {
                 arraylist.add((EntityPlayer) entitytrackerentry.tracker);
             }
         }
 
         for (int i = 0; i < arraylist.size(); ++i) {
             EntityPlayer entityplayer = (EntityPlayer) arraylist.get(i);
-            Iterator iterator1 = this.a.iterator();
+            Iterator iterator1 = this.b.iterator();
 
             while (iterator1.hasNext()) {
                 EntityTrackerEntry entitytrackerentry1 = (EntityTrackerEntry) iterator1.next();
 
                 if (entitytrackerentry1.tracker != entityplayer) {
-                    entitytrackerentry1.b(entityplayer);
+                    entitytrackerentry1.updatePlayer(entityplayer);
                 }
             }
         }
     }
 
-    // CraftBukkit - synchronized
-    public synchronized void a(Entity entity, Packet packet) {
-        EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) this.b.a(entity.id);
+    public void a(Entity entity, Packet packet) {
+        EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) this.trackedEntities.get(entity.id);
 
         if (entitytrackerentry != null) {
-            entitytrackerentry.a(packet);
+            entitytrackerentry.broadcast(packet);
         }
     }
 
-    // CraftBukkit - synchronized
-    public synchronized void b(Entity entity, Packet packet) {
-        EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) this.b.a(entity.id);
+    public void sendPacketToEntity(Entity entity, Packet packet) {
+        EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) this.trackedEntities.get(entity.id);
 
         if (entitytrackerentry != null) {
-            entitytrackerentry.b(packet);
+            entitytrackerentry.broadcastIncludingSelf(packet);
         }
     }
 
-    // CraftBukkit - synchronized
-    public synchronized void trackPlayer(EntityPlayer entityplayer) {
-        Iterator iterator = this.a.iterator();
+    public void untrackPlayer(EntityPlayer entityplayer) {
+        Iterator iterator = this.b.iterator();
 
         while (iterator.hasNext()) {
             EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
 
-            entitytrackerentry.c(entityplayer);
+            entitytrackerentry.clear(entityplayer);
+        }
+    }
+
+    public void a(EntityPlayer entityplayer, Chunk chunk) {
+        Iterator iterator = this.b.iterator();
+
+        while (iterator.hasNext()) {
+            EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
+
+            if (entitytrackerentry.tracker != entityplayer && entitytrackerentry.tracker.aj == chunk.x && entitytrackerentry.tracker.al == chunk.z) {
+                entitytrackerentry.updatePlayer(entityplayer);
+            }
         }
     }
 }

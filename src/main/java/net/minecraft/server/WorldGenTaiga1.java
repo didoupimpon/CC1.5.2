@@ -4,17 +4,13 @@ import java.util.Random;
 
 import org.bukkit.BlockChangeDelegate; // CraftBukkit
 
-public class WorldGenTaiga1 extends WorldGenerator {
+public class WorldGenTaiga1 extends WorldGenerator implements BlockSapling.TreeGenerator { // CraftBukkit add interface
 
     public WorldGenTaiga1() {}
 
     public boolean a(World world, Random random, int i, int j, int k) {
-        // CraftBukkit start
-        // sk: The idea is to have (our) WorldServer implement
-        // BlockChangeDelegate and then we can implicitly cast World to
-        // WorldServer (a safe cast, AFAIK) and no code will be broken. This
-        // then allows plugins to catch manually-invoked generation events
-        return generate((BlockChangeDelegate) world, random, i, j, k);
+        // CraftBukkit start - Moved to generate
+        return this.generate((BlockChangeDelegate) world, random, i, j, k);
     }
 
     public boolean generate(BlockChangeDelegate world, Random random, int i, int j, int k) {
@@ -60,7 +56,7 @@ public class WorldGenTaiga1 extends WorldGenerator {
             } else {
                 l1 = world.getTypeId(i, j - 1, k);
                 if ((l1 == Block.GRASS.id || l1 == Block.DIRT.id) && j < 128 - l - 1) {
-                    world.setRawTypeId(i, j - 1, k, Block.DIRT.id);
+                    this.setType(world, i, j - 1, k, Block.DIRT.id);
                     l2 = 0;
 
                     for (i2 = j + l; i2 >= j + i1; --i2) {
@@ -70,8 +66,8 @@ public class WorldGenTaiga1 extends WorldGenerator {
                             for (int i3 = k - l2; i3 <= k + l2; ++i3) {
                                 int j3 = i3 - k;
 
-                                if ((Math.abs(k2) != l2 || Math.abs(j3) != l2 || l2 <= 0) && !Block.o[world.getTypeId(j2, i2, i3)]) {
-                                    world.setRawTypeIdAndData(j2, i2, i3, Block.LEAVES.id, 1);
+                                if ((Math.abs(k2) != l2 || Math.abs(j3) != l2 || l2 <= 0) && !Block.s[world.getTypeId(j2, i2, i3)]) {
+                                    this.setTypeAndData(world, j2, i2, i3, Block.LEAVES.id, 1);
                                 }
                             }
                         }
@@ -86,7 +82,7 @@ public class WorldGenTaiga1 extends WorldGenerator {
                     for (i2 = 0; i2 < l - 1; ++i2) {
                         j2 = world.getTypeId(i, j + i2, k);
                         if (j2 == 0 || j2 == Block.LEAVES.id) {
-                            world.setRawTypeIdAndData(i, j + i2, k, Block.LOG.id, 1);
+                            this.setTypeAndData(world, i, j + i2, k, Block.LOG.id, 1);
                         }
                     }
 

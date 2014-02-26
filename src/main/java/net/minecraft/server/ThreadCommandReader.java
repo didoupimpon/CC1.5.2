@@ -4,43 +4,42 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-// CraftBukkit start
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import jline.ConsoleReader;
-import org.bukkit.craftbukkit.Main;
-// CraftBukkit end
+import static org.bukkit.craftbukkit.Main.*; // CraftBukkit
 
-public class ThreadCommandReader extends Thread {
+class ThreadCommandReader extends Thread {
 
-    final MinecraftServer server;
+    final DedicatedServer server;
 
-    public ThreadCommandReader(MinecraftServer minecraftserver) {
-        this.server = minecraftserver;
+    ThreadCommandReader(DedicatedServer dedicatedserver) {
+        this.server = dedicatedserver;
     }
 
     public void run() {
         // CraftBukkit start
-        ConsoleReader bufferedreader = this.server.reader;
-        String s = null;
+        if (!useConsole) {
+            return;
+        }
         // CraftBukkit end
 
+        jline.console.ConsoleReader bufferedreader = this.server.reader; // CraftBukkit
+        String s;
+
         try {
-            while (!this.server.isStopped && MinecraftServer.isRunning(this.server)) {
-                // CraftBukkit start - JLine disabling compatibility
-                if (Main.useJline) {
+            // CraftBukkit start - JLine disabling compatibility
+            while (!this.server.isStopped() && this.server.isRunning()) {
+                if (useJline) {
                     s = bufferedreader.readLine(">", null);
                 } else {
                     s = bufferedreader.readLine();
                 }
                 if (s != null) {
-                    // CraftBukkit end
                     this.server.issueCommand(s, this.server);
                 }
+                // CraftBukkit end
             }
         } catch (IOException ioexception) {
             // CraftBukkit
-            Logger.getLogger(ThreadCommandReader.class.getName()).log(Level.SEVERE, null, ioexception);
+            java.util.logging.Logger.getLogger("").log(java.util.logging.Level.SEVERE, null, ioexception);
         }
     }
 }

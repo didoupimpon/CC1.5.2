@@ -1,112 +1,97 @@
 package org.bukkit.craftbukkit.scheduler;
 
-import java.lang.Comparable;
-
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
-public class CraftTask implements Comparable<Object>, BukkitTask {
 
+class CraftTask implements BukkitTask, Runnable {
+
+    private volatile CraftTask next = null;
+    /**
+     * -1 means no repeating <br>
+     * -2 means cancel <br>
+     * -3 means processing for Future <br>
+     * -4 means done for Future <br>
+     * Never 0 <br>
+     * >0 means number of ticks to wait between each execution
+     */
+    private volatile long period;
+    private long nextRun;
     private final Runnable task;
-    private final boolean syncTask;
-    private long executionTick;
-    private final long period;
-    private final Plugin owner;
-    private final int idNumber;
+    private final Plugin plugin;
+    private final int id;
 
-    private static Integer idCounter = 1;
-    private static Object idCounterSync = new Object();
-
-    CraftTask(Plugin owner, Runnable task, boolean syncTask) {
-        this(owner, task, syncTask, -1, -1);
+    CraftTask() {
+        this(null, null, -1, -1);
     }
 
-    CraftTask(Plugin owner, Runnable task, boolean syncTask, long executionTick) {
-        this(owner, task, syncTask, executionTick, -1);
+    CraftTask(final Runnable task) {
+        this(null, task, -1, -1);
     }
 
-    CraftTask(Plugin owner, Runnable task, boolean syncTask, long executionTick, long period) {
+    CraftTask(final Plugin plugin, final Runnable task, final int id, final long period) {
+        this.plugin = plugin;
         this.task = task;
-        this.syncTask = syncTask;
-        this.executionTick = executionTick;
+        this.id = id;
         this.period = period;
-        this.owner = owner;
-        this.idNumber = CraftTask.getNextId();
     }
 
-    static int getNextId() {
-        synchronized (idCounterSync) {
-            idCounter++;
-            return idCounter;
-        }
+    public final int getTaskId() {
+        return id;
     }
 
-    Runnable getTask() {
-        return task;
+    public final Plugin getOwner() {
+        return plugin;
     }
 
     public boolean isSync() {
-        return syncTask;
+        return true;
     }
 
-    long getExecutionTick() {
-        return executionTick;
+    public void run() {
+        task.run();
     }
 
     long getPeriod() {
         return period;
     }
 
-    public Plugin getOwner() {
-        return owner;
+    void setPeriod(long period) {
+        this.period = period;
     }
 
-    void updateExecution() {
-        executionTick += period;
+    long getNextRun() {
+        return nextRun;
     }
 
-    public int getTaskId() {
-        return getIdNumber();
+    void setNextRun(long nextRun) {
+        this.nextRun = nextRun;
     }
 
-    int getIdNumber() {
-        return idNumber;
+    CraftTask getNext() {
+        return next;
     }
 
-    public int compareTo(Object other) {
-        if (!(other instanceof CraftTask)) {
-            return 0;
-        } else {
-            CraftTask o = (CraftTask) other;
-            long timeDiff = executionTick - o.getExecutionTick();
-            if (timeDiff>0) {
-                return 1;
-            } else if (timeDiff<0) {
-                return -1;
-            } else {
-                CraftTask otherCraftTask = (CraftTask) other;
-                return getIdNumber() - otherCraftTask.getIdNumber();
-            }
-        }
+    void setNext(CraftTask next) {
+        this.next = next;
     }
 
-    @Override
-    public boolean equals(Object other) {
-
-        if (other == null) {
-            return false;
-        }
-
-        if (!(other instanceof CraftTask)) {
-            return false;
-        }
-
-        CraftTask otherCraftTask = (CraftTask) other;
-        return otherCraftTask.getIdNumber() == getIdNumber();
+    Class<? extends Runnable> getTaskClass() {
+        return task.getClass();
     }
 
-    @Override
-    public int hashCode() {
-        return getIdNumber();
+    public void cancel() {
+        Bukkit.getScheduler().cancelTask(id);
+    }
+
+    /**
+     * This method properly sets the status to cancelled, synchronizing when required.
+     *
+     * @return false if it is a craft future task that has already begun execution, true otherwise
+     */
+    boolean cancel0() {
+        setPeriod(-2l);
+        return true;
     }
 }

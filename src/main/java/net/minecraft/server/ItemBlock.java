@@ -1,12 +1,5 @@
 package net.minecraft.server;
 
-// CraftBukkit start
-import org.bukkit.block.BlockState;
-import org.bukkit.craftbukkit.block.CraftBlockState;
-import org.bukkit.craftbukkit.event.CraftEventFactory;
-import org.bukkit.event.block.BlockPlaceEvent;
-// CraftBukkit end
-
 public class ItemBlock extends Item {
 
     private int id;
@@ -14,15 +7,19 @@ public class ItemBlock extends Item {
     public ItemBlock(int i) {
         super(i);
         this.id = i + 256;
-        this.b(Block.byId[i + 256].a(2));
     }
 
-    public boolean a(ItemStack itemstack, EntityHuman entityhuman, World world, int i, int j, int k, int l) {
-        int clickedX = i, clickedY = j, clickedZ = k; // CraftBukkit
+    public int g() {
+        return this.id;
+    }
 
-        if (world.getTypeId(i, j, k) == Block.SNOW.id) {
-            l = 0;
-        } else {
+    public boolean interactWith(ItemStack itemstack, EntityHuman entityhuman, World world, int i, int j, int k, int l, float f, float f1, float f2) {
+        final int clickedX = i, clickedY = j, clickedZ = k;
+        int i1 = world.getTypeId(i, j, k);
+
+        if (i1 == Block.SNOW.id && (world.getData(i, j, k) & 7) < 1) {
+            l = 1;
+        } else if (i1 != Block.VINE.id && i1 != Block.LONG_GRASS.id && i1 != Block.DEAD_BUSH.id) {
             if (l == 0) {
                 --j;
             }
@@ -50,62 +47,81 @@ public class ItemBlock extends Item {
 
         if (itemstack.count == 0) {
             return false;
-        } else if (world.a(this.id, i, j, k, false)) {
+        } else if (!entityhuman.a(i, j, k, l, itemstack)) {
+            return false;
+        } else if (j == 255 && Block.byId[this.id].material.isBuildable()) {
+            return false;
+        } else if (world.mayPlace(this.id, i, j, k, false, l, entityhuman, itemstack)) {
             Block block = Block.byId[this.id];
+            int j1 = this.filterData(itemstack.getData());
+            int k1 = Block.byId[this.id].getPlacedData(world, i, j, k, l, f, f1, f2, j1);
 
-            // CraftBukkit start - This executes the placement of the block
-            BlockState replacedBlockState = CraftBlockState.getBlockState(world, i, j, k);
-
-            // Special case the silly stepstone :'(
-            if (l == 1 && world.getTypeId(i, j - 1, k) == Block.STEP.id && itemstack.id == Block.STEP.id) {
-                replacedBlockState = CraftBlockState.getBlockState(world, i, j - 1, k);
-            }
-            /**
-            * @see net.minecraft.server.World#setTypeIdAndData(int i, int j, int k, int l, int i1)
-            *
-            * This replaces world.setTypeIdAndData(IIIII), we're doing this because we need to
-            * hook between the 'placement' and the informing to 'world' so we can
-            * sanely undo this.
-            *
-            * Whenever the call to 'world.setTypeIdAndData' changes we need to figure out again what to
-            * replace this with.
-            */
-            if (world.setRawTypeIdAndData(i, j, k, this.id, this.filterData(itemstack.getData()))) { // <-- world.setTypeIdAndData does this to place the block
-                BlockPlaceEvent event = CraftEventFactory.callBlockPlaceEvent(world, entityhuman, replacedBlockState, clickedX, clickedY, clickedZ, block);
-
-                if (event.isCancelled() || !event.canBuild()) {
-                    if ((this.id == Block.STEP.id) && (world.getTypeId(i, j - 1, k) == Block.DOUBLE_STEP.id) && (world.getTypeId(i, j, k) == 0)) {
-                        // Half steps automatically set the block below to a double
-                        world.setTypeId(i, j - 1, k, 44);
-
-                    } else {
-
-                        if (this.id == Block.ICE.id) {
-                            // Ice will explode if we set straight to 0
-                            world.setTypeId(i, j, k, 20);
-                        }
-
-                        world.setTypeIdAndData(i, j, k, replacedBlockState.getTypeId(), replacedBlockState.getRawData());
-                    }
-
-                } else {
-                    world.update(i, j, k, this.id); // <-- world.setTypeIdAndData does this on success (tell the world)
-
-                    Block.byId[this.id].postPlace(world, i, j, k, l);
-                    Block.byId[this.id].postPlace(world, i, j, k, entityhuman);
-                    world.makeSound((double) ((float) i + 0.5F), (double) ((float) j + 0.5F), (double) ((float) k + 0.5F), block.stepSound.getName(), (block.stepSound.getVolume1() + 1.0F) / 2.0F, block.stepSound.getVolume2() * 0.8F);
-                    --itemstack.count;
+            // CraftBukkit start - Redirect to common function handler
+            /*
+            if (world.setTypeIdAndData(i, j, k, this.id, k1, 3)) {
+                if (world.getTypeId(i, j, k) == this.id) {
+                    Block.byId[this.id].postPlace(world, i, j, k, entityhuman, itemstack);
+                    Block.byId[this.id].postPlace(world, i, j, k, k1);
                 }
-                // CraftBukkit end
-            }
 
-            return true;
+                world.makeSound((double) ((float) i + 0.5F), (double) ((float) j + 0.5F), (double) ((float) k + 0.5F), block.stepSound.getPlaceSound(), (block.stepSound.getVolume1() + 1.0F) / 2.0F, block.stepSound.getVolume2() * 0.8F);
+                --itemstack.count;
+            }
+            */
+            return processBlockPlace(world, entityhuman, itemstack, i, j, k, this.id, k1, clickedX, clickedY, clickedZ);
+            // CraftBukkit end
         } else {
             return false;
         }
     }
 
-    public String a() {
-        return Block.byId[this.id].f();
+    // CraftBukkit start - Add method to process block placement
+    static boolean processBlockPlace(final World world, final EntityHuman entityhuman, final ItemStack itemstack, final int x, final int y, final int z, final int id, final int data, final int clickedX, final int clickedY, final int clickedZ) {
+        org.bukkit.block.BlockState blockstate = org.bukkit.craftbukkit.block.CraftBlockState.getBlockState(world, x, y, z);
+
+        world.callingPlaceEvent = true;
+        world.setTypeIdAndData(x, y, z, id, data, 2);
+
+        org.bukkit.event.block.BlockPlaceEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callBlockPlaceEvent(world, entityhuman, blockstate, clickedX, clickedY, clickedZ);
+        if (event.isCancelled() || !event.canBuild()) {
+            blockstate.update(true, false);
+            world.callingPlaceEvent = false;
+            return false;
+        }
+
+        world.callingPlaceEvent = false;
+
+        int newId = world.getTypeId(x, y, z);
+        int newData = world.getData(x, y, z);
+
+        Block block = Block.byId[newId];
+        if (block != null && !(block instanceof BlockContainer)) { // Containers get placed automatically
+            block.onPlace(world, x, y, z);
+        }
+
+        world.update(x, y, z, newId);
+
+        // Skulls don't get block data applied to them
+        if (block != null && block != Block.SKULL) {
+            block.postPlace(world, x, y, z, entityhuman, itemstack);
+            block.postPlace(world, x, y, z, newData);
+
+            world.makeSound((double) ((float) x + 0.5F), (double) ((float) y + 0.5F), (double) ((float) z + 0.5F), block.stepSound.getPlaceSound(), (block.stepSound.getVolume1() + 1.0F) / 2.0F, block.stepSound.getVolume2() * 0.8F);
+        }
+
+        if (itemstack != null) {
+            --itemstack.count;
+        }
+
+        return true;
+    }
+    // CraftBukkit end
+
+    public String d(ItemStack itemstack) {
+        return Block.byId[this.id].a();
+    }
+
+    public String getName() {
+        return Block.byId[this.id].a();
     }
 }
