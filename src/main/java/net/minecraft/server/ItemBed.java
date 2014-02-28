@@ -1,19 +1,24 @@
 package net.minecraft.server;
 
+// CraftBukkit start
+import org.bukkit.block.BlockState;
+import org.bukkit.craftbukkit.block.CraftBlockState;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.event.block.BlockPlaceEvent;
+// CraftBukkit end
+
 public class ItemBed extends Item {
 
     public ItemBed(int i) {
         super(i);
-        this.a(CreativeModeTab.c);
     }
 
-    public boolean interactWith(ItemStack itemstack, EntityHuman entityhuman, World world, int i, int j, int k, int l, float f, float f1, float f2) {
-        final int clickedX = i, clickedY = j, clickedZ = k; // CraftBukkit
-        if (world.isStatic) {
-            return true;
-        } else if (l != 1) {
+    public boolean a(ItemStack itemstack, EntityHuman entityhuman, World world, int i, int j, int k, int l) {
+        if (l != 1) {
             return false;
         } else {
+            int clickedX = i, clickedY = j, clickedZ = k; // CraftBukkit
+
             ++j;
             BlockBed blockbed = (BlockBed) Block.BED;
             int i1 = MathHelper.floor((double) (entityhuman.yaw * 4.0F / 360.0F) + 0.5D) & 3;
@@ -36,24 +41,23 @@ public class ItemBed extends Item {
                 b0 = 1;
             }
 
-            if (entityhuman.a(i, j, k, l, itemstack) && entityhuman.a(i + b0, j, k + b1, l, itemstack)) {
-                if (world.isEmpty(i, j, k) && world.isEmpty(i + b0, j, k + b1) && world.w(i, j - 1, k) && world.v(i + b0, j - 1, k + b1)) {
-                    // CraftBukkit start
-                    // world.setTypeIdAndData(i, j, k, blockbed.id, i1, 3);
-                    if (!ItemBlock.processBlockPlace(world, entityhuman, null, i, j, k, blockbed.id, i1, clickedX, clickedY, clickedZ)) {
-                        return false;
-                    }
-                    // CraftBukkit end
+            if (world.isEmpty(i, j, k) && world.isEmpty(i + b0, j, k + b1) && world.d(i, j - 1, k) && world.d(i + b0, j - 1, k + b1)) {
+                BlockState blockState = CraftBlockState.getBlockState(world, i, j, k); // CraftBukkit
 
-                    if (world.getTypeId(i, j, k) == blockbed.id) {
-                        world.setTypeIdAndData(i + b0, j, k + b1, blockbed.id, i1 + 8, 3);
-                    }
+                world.setTypeIdAndData(i, j, k, blockbed.id, i1);
 
-                    --itemstack.count;
-                    return true;
-                } else {
+                // CraftBukkit start - bed
+                BlockPlaceEvent event = CraftEventFactory.callBlockPlaceEvent(world, entityhuman, blockState, clickedX, clickedY, clickedZ,  blockbed);
+
+                if (event.isCancelled() || !event.canBuild()) {
+                    event.getBlockPlaced().setTypeIdAndData(blockState.getTypeId(), blockState.getRawData(), false);
                     return false;
                 }
+                // CraftBukkit end
+
+                world.setTypeIdAndData(i + b0, j, k + b1, blockbed.id, i1 + 8);
+                --itemstack.count;
+                return true;
             } else {
                 return false;
             }

@@ -2,19 +2,19 @@ package net.minecraft.server;
 
 import java.util.Random;
 
-import org.bukkit.event.block.BlockRedstoneEvent; // CraftBukkit
+// CraftBukkit start
+import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.event.block.BlockRedstoneEvent;
+// CraftBukkit end
 
 public class BlockDoor extends Block {
 
-    private static final String[] a = new String[] { "doorWood_lower", "doorWood_upper", "doorIron_lower", "doorIron_upper"};
-    private final int b;
-
     protected BlockDoor(int i, Material material) {
         super(i, material);
+        this.textureId = 97;
         if (material == Material.ORE) {
-            this.b = 2;
-        } else {
-            this.b = 0;
+            ++this.textureId;
         }
 
         float f = 0.5F;
@@ -23,227 +23,195 @@ public class BlockDoor extends Block {
         this.a(0.5F - f, 0.0F, 0.5F - f, 0.5F + f, f1, 0.5F + f);
     }
 
-    public boolean c() {
-        return false;
-    }
+    public int a(int i, int j) {
+        if (i != 0 && i != 1) {
+            int k = this.d(j);
 
-    public boolean b(IBlockAccess iblockaccess, int i, int j, int k) {
-        int l = this.c_(iblockaccess, i, j, k);
-
-        return (l & 4) != 0;
-    }
-
-    public boolean b() {
-        return false;
-    }
-
-    public int d() {
-        return 7;
-    }
-
-    public AxisAlignedBB b(World world, int i, int j, int k) {
-        this.updateShape(world, i, j, k);
-        return super.b(world, i, j, k);
-    }
-
-    public void updateShape(IBlockAccess iblockaccess, int i, int j, int k) {
-        this.d(this.c_(iblockaccess, i, j, k));
-    }
-
-    public int d(IBlockAccess iblockaccess, int i, int j, int k) {
-        return this.c_(iblockaccess, i, j, k) & 3;
-    }
-
-    public boolean b_(IBlockAccess iblockaccess, int i, int j, int k) {
-        return (this.c_(iblockaccess, i, j, k) & 4) != 0;
-    }
-
-    private void d(int i) {
-        float f = 0.1875F;
-
-        this.a(0.0F, 0.0F, 0.0F, 1.0F, 2.0F, 1.0F);
-        int j = i & 3;
-        boolean flag = (i & 4) != 0;
-        boolean flag1 = (i & 16) != 0;
-
-        if (j == 0) {
-            if (flag) {
-                if (!flag1) {
-                    this.a(0.0F, 0.0F, 0.0F, 1.0F, 1.0F, f);
-                } else {
-                    this.a(0.0F, 0.0F, 1.0F - f, 1.0F, 1.0F, 1.0F);
-                }
+            if ((k == 0 || k == 2) ^ i <= 3) {
+                return this.textureId;
             } else {
-                this.a(0.0F, 0.0F, 0.0F, f, 1.0F, 1.0F);
-            }
-        } else if (j == 1) {
-            if (flag) {
-                if (!flag1) {
-                    this.a(1.0F - f, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F);
-                } else {
-                    this.a(0.0F, 0.0F, 0.0F, f, 1.0F, 1.0F);
+                int l = k / 2 + (i & 1 ^ k);
+
+                l += (j & 4) / 4;
+                int i1 = this.textureId - (j & 8) * 2;
+
+                if ((l & 1) != 0) {
+                    i1 = -i1;
                 }
-            } else {
-                this.a(0.0F, 0.0F, 0.0F, 1.0F, 1.0F, f);
+
+                return i1;
             }
-        } else if (j == 2) {
-            if (flag) {
-                if (!flag1) {
-                    this.a(0.0F, 0.0F, 1.0F - f, 1.0F, 1.0F, 1.0F);
-                } else {
-                    this.a(0.0F, 0.0F, 0.0F, 1.0F, 1.0F, f);
-                }
-            } else {
-                this.a(1.0F - f, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F);
-            }
-        } else if (j == 3) {
-            if (flag) {
-                if (!flag1) {
-                    this.a(0.0F, 0.0F, 0.0F, f, 1.0F, 1.0F);
-                } else {
-                    this.a(1.0F - f, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F);
-                }
-            } else {
-                this.a(0.0F, 0.0F, 1.0F - f, 1.0F, 1.0F, 1.0F);
-            }
+        } else {
+            return this.textureId;
         }
     }
 
-    public void attack(World world, int i, int j, int k, EntityHuman entityhuman) {}
+    public boolean a() {
+        return false;
+    }
 
-    public boolean interact(World world, int i, int j, int k, EntityHuman entityhuman, int l, float f, float f1, float f2) {
+    public AxisAlignedBB d(World world, int i, int j, int k) {
+        this.a(world, i, j, k);
+        return super.d(world, i, j, k);
+    }
+
+    public void a(IBlockAccess iblockaccess, int i, int j, int k) {
+        this.c(this.d(iblockaccess.getData(i, j, k)));
+    }
+
+    public void c(int i) {
+        float f = 0.1875F;
+
+        this.a(0.0F, 0.0F, 0.0F, 1.0F, 2.0F, 1.0F);
+        if (i == 0) {
+            this.a(0.0F, 0.0F, 0.0F, 1.0F, 1.0F, f);
+        }
+
+        if (i == 1) {
+            this.a(1.0F - f, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F);
+        }
+
+        if (i == 2) {
+            this.a(0.0F, 0.0F, 1.0F - f, 1.0F, 1.0F, 1.0F);
+        }
+
+        if (i == 3) {
+            this.a(0.0F, 0.0F, 0.0F, f, 1.0F, 1.0F);
+        }
+    }
+
+    public void b(World world, int i, int j, int k, EntityHuman entityhuman) {
+        this.interact(world, i, j, k, entityhuman);
+    }
+
+    public boolean interact(World world, int i, int j, int k, EntityHuman entityhuman) {
         if (this.material == Material.ORE) {
             return true;
         } else {
-            int i1 = this.c_(world, i, j, k);
-            int j1 = i1 & 7;
+            int l = world.getData(i, j, k);
 
-            j1 ^= 4;
-            if ((i1 & 8) == 0) {
-                world.setData(i, j, k, j1, 2);
-                world.g(i, j, k, i, j, k);
+            if ((l & 8) != 0) {
+                if (world.getTypeId(i, j - 1, k) == this.id) {
+                    this.interact(world, i, j - 1, k, entityhuman);
+                }
+
+                return true;
             } else {
-                world.setData(i, j - 1, k, j1, 2);
-                world.g(i, j - 1, k, i, j, k);
-            }
+                if (world.getTypeId(i, j + 1, k) == this.id) {
+                    world.setData(i, j + 1, k, (l ^ 4) + 8);
+                }
 
-            world.a(entityhuman, 1003, i, j, k, 0);
-            return true;
+                world.setData(i, j, k, l ^ 4);
+                world.b(i, j - 1, k, i, j, k);
+                if (Math.random() < 0.5D) {
+                    world.makeSound((double) i + 0.5D, (double) j + 0.5D, (double) k + 0.5D, "random.door_open", 1.0F, world.random.nextFloat() * 0.1F + 0.9F);
+                } else {
+                    world.makeSound((double) i + 0.5D, (double) j + 0.5D, (double) k + 0.5D, "random.door_close", 1.0F, world.random.nextFloat() * 0.1F + 0.9F);
+                }
+
+                return true;
+            }
         }
     }
 
     public void setDoor(World world, int i, int j, int k, boolean flag) {
-        int l = this.c_(world, i, j, k);
-        boolean flag1 = (l & 4) != 0;
+        int l = world.getData(i, j, k);
 
-        if (flag1 != flag) {
-            int i1 = l & 7;
-
-            i1 ^= 4;
-            if ((l & 8) == 0) {
-                world.setData(i, j, k, i1, 2);
-                world.g(i, j, k, i, j, k);
-            } else {
-                world.setData(i, j - 1, k, i1, 2);
-                world.g(i, j - 1, k, i, j, k);
+        if ((l & 8) != 0) {
+            if (world.getTypeId(i, j - 1, k) == this.id) {
+                this.setDoor(world, i, j - 1, k, flag);
             }
+        } else {
+            boolean flag1 = (world.getData(i, j, k) & 4) > 0;
 
-            world.a((EntityHuman) null, 1003, i, j, k, 0);
+            if (flag1 != flag) {
+                if (world.getTypeId(i, j + 1, k) == this.id) {
+                    world.setData(i, j + 1, k, (l ^ 4) + 8);
+                }
+
+                world.setData(i, j, k, l ^ 4);
+                world.b(i, j - 1, k, i, j, k);
+                if (Math.random() < 0.5D) {
+                    world.makeSound((double) i + 0.5D, (double) j + 0.5D, (double) k + 0.5D, "random.door_open", 1.0F, world.random.nextFloat() * 0.1F + 0.9F);
+                } else {
+                    world.makeSound((double) i + 0.5D, (double) j + 0.5D, (double) k + 0.5D, "random.door_close", 1.0F, world.random.nextFloat() * 0.1F + 0.9F);
+                }
+            }
         }
     }
 
     public void doPhysics(World world, int i, int j, int k, int l) {
         int i1 = world.getData(i, j, k);
 
-        if ((i1 & 8) == 0) {
+        if ((i1 & 8) != 0) {
+            if (world.getTypeId(i, j - 1, k) != this.id) {
+                world.setTypeId(i, j, k, 0);
+            }
+
+            if (l > 0 && Block.byId[l].isPowerSource()) {
+                this.doPhysics(world, i, j - 1, k, l);
+            }
+        } else {
             boolean flag = false;
 
             if (world.getTypeId(i, j + 1, k) != this.id) {
-                world.setAir(i, j, k);
+                world.setTypeId(i, j, k, 0);
                 flag = true;
             }
 
-            if (!world.w(i, j - 1, k)) {
-                world.setAir(i, j, k);
+            if (!world.d(i, j - 1, k)) {
+                world.setTypeId(i, j, k, 0);
                 flag = true;
                 if (world.getTypeId(i, j + 1, k) == this.id) {
-                    world.setAir(i, j + 1, k);
+                    world.setTypeId(i, j + 1, k, 0);
                 }
             }
 
             if (flag) {
                 if (!world.isStatic) {
-                    this.c(world, i, j, k, i1, 0);
+                    this.a_(world, i, j, k, i1);
                 }
-            // CraftBukkit start
             } else if (l > 0 && Block.byId[l].isPowerSource()) {
-                org.bukkit.World bworld = world.getWorld();
-                org.bukkit.block.Block block = bworld.getBlockAt(i, j, k);
-                org.bukkit.block.Block blockTop = bworld.getBlockAt(i, j + 1, k);
+                boolean flag1 = world.isBlockIndirectlyPowered(i, j, k) || world.isBlockIndirectlyPowered(i, j + 1, k);
 
+                // CraftBukkit start
+                CraftWorld craftWorld = ((WorldServer) world).getWorld();
+                CraftServer server = ((WorldServer) world).getServer();
+                org.bukkit.block.Block block = craftWorld.getBlockAt(i, j, k);
+                org.bukkit.block.Block blockTop = craftWorld.getBlockAt(i, j + 1, k);
                 int power = block.getBlockPower();
                 int powerTop = blockTop.getBlockPower();
                 if (powerTop > power) power = powerTop;
-                int oldPower = (world.getData(i, j, k) & 4) > 0 ? 15 : 0;
 
-                if (oldPower == 0 ^ power == 0) {
-                    BlockRedstoneEvent eventRedstone = new BlockRedstoneEvent(block, oldPower, power);
-                    world.getServer().getPluginManager().callEvent(eventRedstone);
+                BlockRedstoneEvent eventRedstone = new BlockRedstoneEvent(block, (world.getData(i, j, k) & 4) > 0 ? 15: 0, power);
+                server.getPluginManager().callEvent(eventRedstone);
 
-                    this.setDoor(world, i, j, k, eventRedstone.getNewCurrent() > 0);
-                }
+                flag1 = eventRedstone.getNewCurrent() > 0;
                 // CraftBukkit end
-            }
-        } else {
-            if (world.getTypeId(i, j - 1, k) != this.id) {
-                world.setAir(i, j, k);
-            }
 
-            else if (l > 0 && l != this.id) { // CraftBukkit
-                this.doPhysics(world, i, j - 1, k, l);
+                this.setDoor(world, i, j, k, flag1);
             }
         }
     }
 
-    public int getDropType(int i, Random random, int j) {
+    public int a(int i, Random random) {
         return (i & 8) != 0 ? 0 : (this.material == Material.ORE ? Item.IRON_DOOR.id : Item.WOOD_DOOR.id);
     }
 
     public MovingObjectPosition a(World world, int i, int j, int k, Vec3D vec3d, Vec3D vec3d1) {
-        this.updateShape(world, i, j, k);
+        this.a(world, i, j, k);
         return super.a(world, i, j, k, vec3d, vec3d1);
     }
 
+    public int d(int i) {
+        return (i & 4) == 0 ? i - 1 & 3 : i & 3;
+    }
+
     public boolean canPlace(World world, int i, int j, int k) {
-        return j >= 255 ? false : world.w(i, j - 1, k) && super.canPlace(world, i, j, k) && super.canPlace(world, i, j + 1, k);
+        return j >= 127 ? false : world.d(i, j - 1, k) && super.canPlace(world, i, j, k) && super.canPlace(world, i, j + 1, k);
     }
 
-    public int h() {
-        return 1;
-    }
-
-    public int c_(IBlockAccess iblockaccess, int i, int j, int k) {
-        int l = iblockaccess.getData(i, j, k);
-        boolean flag = (l & 8) != 0;
-        int i1;
-        int j1;
-
-        if (flag) {
-            i1 = iblockaccess.getData(i, j - 1, k);
-            j1 = l;
-        } else {
-            i1 = l;
-            j1 = iblockaccess.getData(i, j + 1, k);
-        }
-
-        boolean flag1 = (j1 & 1) != 0;
-
-        return i1 & 7 | (flag ? 8 : 0) | (flag1 ? 16 : 0);
-    }
-
-    public void a(World world, int i, int j, int k, int l, EntityHuman entityhuman) {
-        if (entityhuman.abilities.canInstantlyBuild && (l & 8) != 0 && world.getTypeId(i, j - 1, k) == this.id) {
-            world.setAir(i, j - 1, k);
-        }
+    public static boolean e(int i) {
+        return (i & 4) != 0;
     }
 }

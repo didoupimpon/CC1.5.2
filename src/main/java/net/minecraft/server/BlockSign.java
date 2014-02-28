@@ -2,7 +2,12 @@ package net.minecraft.server;
 
 import java.util.Random;
 
-import org.bukkit.event.block.BlockRedstoneEvent; // CraftBukkit
+// CraftBukkit start
+import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.block.Block;
+import org.bukkit.event.block.BlockRedstoneEvent;
+// CraftBukkit end
 
 public class BlockSign extends BlockContainer {
 
@@ -12,6 +17,7 @@ public class BlockSign extends BlockContainer {
     protected BlockSign(int i, Class oclass, boolean flag) {
         super(i, Material.WOOD);
         this.b = flag;
+        this.textureId = 4;
         this.a = oclass;
         float f = 0.25F;
         float f1 = 1.0F;
@@ -19,11 +25,11 @@ public class BlockSign extends BlockContainer {
         this.a(0.5F - f, 0.0F, 0.5F - f, 0.5F + f, f1, 0.5F + f);
     }
 
-    public AxisAlignedBB b(World world, int i, int j, int k) {
+    public AxisAlignedBB d(World world, int i, int j, int k) {
         return null;
     }
 
-    public void updateShape(IBlockAccess iblockaccess, int i, int j, int k) {
+    public void a(IBlockAccess iblockaccess, int i, int j, int k) {
         if (!this.b) {
             int l = iblockaccess.getData(i, j, k);
             float f = 0.28125F;
@@ -51,23 +57,11 @@ public class BlockSign extends BlockContainer {
         }
     }
 
-    public int d() {
-        return -1;
-    }
-
-    public boolean b() {
+    public boolean a() {
         return false;
     }
 
-    public boolean b(IBlockAccess iblockaccess, int i, int j, int k) {
-        return true;
-    }
-
-    public boolean c() {
-        return false;
-    }
-
-    public TileEntity b(World world) {
+    protected TileEntity a_() {
         try {
             return (TileEntity) this.a.newInstance();
         } catch (Exception exception) {
@@ -75,7 +69,7 @@ public class BlockSign extends BlockContainer {
         }
     }
 
-    public int getDropType(int i, Random random, int j) {
+    public int a(int i, Random random) {
         return Item.SIGN.id;
     }
 
@@ -108,19 +102,21 @@ public class BlockSign extends BlockContainer {
         }
 
         if (flag) {
-            this.c(world, i, j, k, world.getData(i, j, k), 0);
-            world.setAir(i, j, k);
+            this.a_(world, i, j, k, world.getData(i, j, k));
+            world.setTypeId(i, j, k, 0);
         }
 
         super.doPhysics(world, i, j, k, l);
 
         // CraftBukkit start
         if (net.minecraft.server.Block.byId[l] != null && net.minecraft.server.Block.byId[l].isPowerSource()) {
-            org.bukkit.block.Block block = world.getWorld().getBlockAt(i, j, k);
+            CraftWorld craftWorld = ((WorldServer) world).getWorld();
+            CraftServer server = ((WorldServer) world).getServer();
+            Block block = craftWorld.getBlockAt(i, j, k);
             int power = block.getBlockPower();
 
             BlockRedstoneEvent eventRedstone = new BlockRedstoneEvent(block, power, power);
-            world.getServer().getPluginManager().callEvent(eventRedstone);
+            server.getPluginManager().callEvent(eventRedstone);
         }
         // CraftBukkit end
     }

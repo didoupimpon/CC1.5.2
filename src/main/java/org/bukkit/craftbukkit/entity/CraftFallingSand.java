@@ -1,21 +1,15 @@
 package org.bukkit.craftbukkit.entity;
 
-import net.minecraft.server.EntityFallingBlock;
+import net.minecraft.server.EntityFallingSand;
 
-import org.bukkit.Material;
 import org.bukkit.craftbukkit.CraftServer;
-import org.bukkit.entity.EntityType;
+import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.entity.FallingSand;
 
 public class CraftFallingSand extends CraftEntity implements FallingSand {
 
-    public CraftFallingSand(CraftServer server, EntityFallingBlock entity) {
+    public CraftFallingSand(CraftServer server, EntityFallingSand entity) {
         super(server, entity);
-    }
-
-    @Override
-    public EntityFallingBlock getHandle() {
-        return (EntityFallingBlock) entity;
     }
 
     @Override
@@ -23,27 +17,4 @@ public class CraftFallingSand extends CraftEntity implements FallingSand {
         return "CraftFallingSand";
     }
 
-    public EntityType getType() {
-        return EntityType.FALLING_BLOCK;
-    }
-
-    public Material getMaterial() {
-        return Material.getMaterial(getBlockId());
-    }
-
-    public int getBlockId() {
-        return getHandle().id;
-    }
-
-    public byte getBlockData() {
-        return (byte) getHandle().data;
-    }
-
-    public boolean getDropItem() {
-        return getHandle().dropItem;
-    }
-
-    public void setDropItem(boolean drop) {
-        getHandle().dropItem = drop;
-    }
 }
