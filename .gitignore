@@ -21,5 +21,16 @@
 /dist
 /manifest.mf
 
+/world
+
 # Mac filesystem dust
-/.DS_Store
+.DS_Store
+
+# intellij
+*.iml
+*.ipr
+*.iws
+.idea/
+
+/src/main/resources/achievement
+/src/main/resources/lang
